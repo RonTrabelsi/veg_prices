@@ -3,7 +3,6 @@
 from enum import Enum
 from typing import Dict
 
-
 # Plant Council website URL
 REQUEST_URL: str = 'http://plants.moonsitesoftware.co.il/index.aspx'
 
@@ -26,13 +25,13 @@ REQUEST_DATA: Dict[str, str] = {
 }
 
 # Date format for the start date in the prices request
-REQUEST_START_DATE_FORMAT:str = "%Y-%m-%d-%H-%M-%S"
+REQUEST_START_DATE_FORMAT: str = "%Y-%m-%d-%H-%M-%S"
 
 # Date format for the end date in the prices request
-REQUEST_END_DATE_FORMAT:str = "%Y-%m-%d"
+REQUEST_END_DATE_FORMAT: str = "%Y-%m-%d"
 
 # Date format of the respone
-RESPONSE_DATE_FORMAT:str = "%d/%m/%y"
+RESPONSE_DATE_FORMAT: str = "%d/%m/%y"
 
 # Regex Pattern to extract the prices table from the response HTML
 PRICES_TABLE_PATTERN: str = r'<tbody>\\r\\n\\t<tr class="rgRow tblPricesCells" id="ctl02_RadGrid1_ctl00__0" style="text-align:right;">(.*?)</tbody>\\r\\n\\r\\n</table>'
@@ -41,16 +40,16 @@ PRICES_TABLE_PATTERN: str = r'<tbody>\\r\\n\\t<tr class="rgRow tblPricesCells" i
 ROW_DATE_PATTERN: str = r'<td style="width:115px;">(\d{2}/\d{2}/\d{2})</td>'
 
 # Regex Pattern to extract regular price from prices table row
-ROW_REGULAR_PRICE_PATTERN:str = r'<td style="width:115px;">.*?</td><td class="productName" style="width:249px;">.*?</td><td style="width:115px;">.*?(\d{1,2}\.\d{2})'
+ROW_REGULAR_PRICE_PATTERN: str = r'<td style="width:115px;">.*?</td><td class="productName" style="width:249px;">.*?</td><td style="width:115px;">.*?(\d{1,2}\.\d{2})'
 
 # Regex Pattern to extract speical price from prices table row
-ROW_SPECIAL_PRICE_PATTERN:str = r'<td style="width:115px;">.*?</td><td class="productName" style="width:249px;">.*?</td><td style="width:115px;">.*?</td><td style="width:115px;">.*?(\d{1,2}\.\d{2})'
+ROW_SPECIAL_PRICE_PATTERN: str = r'<td style="width:115px;">.*?</td><td class="productName" style="width:249px;">.*?</td><td style="width:115px;">.*?</td><td style="width:115px;">.*?(\d{1,2}\.\d{2})'
 
 # The HTML delimeter between rows
-ROWS_DELIMITER:str = "</tr>"
+ROWS_DELIMITER: str = "</tr>"
 
 # Number of rows per request according to pagination limit
-ROWS_PER_REQUEST:int = 100
+ROWS_PER_REQUEST: int = 100
 
 # 5 work days per month in the common case
-WORK_DAYS_PER_WEEK:float = 5/7
+WORK_DAYS_PER_WEEK: float = 5/7
