@@ -3,12 +3,14 @@
 from datetime import datetime
 from typing import Dict, List
 
-from app.database import market_prices_collection
+from app.database import elastic_client, MARKET_PRICES_INDEX
 from app.logic.plants_council_scraper import plants_council_scraper
 from app.schemas import MarketPricesRequest
 from app.utils import (DEFAULT_END_DATE, DEFAULT_START_DATE,
                        format_vegetable_prices_data)
 from fastapi import APIRouter, status
+
+from app.config import settings
 
 market_prices_router = APIRouter()
 
@@ -49,9 +51,17 @@ def scrap_market_prices(
     "/",
     summary="Get a period vegetable prices from the DB",
     response_description="Vegetable prices per date")
-def scrap_market_prices(
+def get_market_prices(
     vegetable_name: str
 ) -> List[Dict[datetime, Dict[str, float]]]:
-    vegetable_prices_data = market_prices_collection.find(
-        {"vegetable_name": vegetable_name})
+    matched_vegetable_query = {"match": {"vegetable_name": vegetable_name}}
+    no_metadata_filter = "hits.hits._source"
+
+    response = elastic_client.search(index=MARKET_PRICES_INDEX,
+                                     query=matched_vegetable_query,
+                                     filter_path=no_metadata_filter,
+                                     size=settings.response_max_dates_data)
+    vegetable_prices_data = [doc["_source"]
+                             for doc in response["hits"]["hits"]]
+    
     return format_vegetable_prices_data(vegetable_prices_data)

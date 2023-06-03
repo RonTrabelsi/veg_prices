@@ -4,11 +4,11 @@ from copy import deepcopy
 from datetime import datetime
 from logging import getLogger
 from re import compile, findall
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from app.database import market_prices_collection
+from app.database import elastic_client, MARKET_PRICES_INDEX
 from app.loggers import Loggers
-from app.logic.plants_council_consts import (LOG_DATE_FORMAT,
+from app.logic.plants_council_consts import (GENERAL_DATE_FORMAT,
                                              PLANTS_COUNCIL_WEBSITE_URL,
                                              PRICES_TABLE_PATTERN,
                                              REQUEST_DATA,
@@ -19,7 +19,6 @@ from app.logic.plants_council_consts import (LOG_DATE_FORMAT,
                                              ROW_REGULAR_PRICE_PATTERN,
                                              ROW_SPECIAL_PRICE_PATTERN,
                                              ROWS_DELIMITER, RequestFields)
-from pymongo import UpdateOne
 from requests import Session
 
 
@@ -66,7 +65,7 @@ class PlantsCouncilScraper:
         start_date: datetime,
         end_date: datetime,
         page_number: int,
-    ) -> Dict[str, Any]:
+    ) -> List[Dict[str, Any]]:
         """ 
         Scrap a page of the prices of the vegetable from the plants council 
         website 
@@ -142,7 +141,7 @@ class PlantsCouncilScraper:
         cur_prices = True
 
         while cur_prices:
-            cur_prices = self.request_prices(
+            cur_prices = self.scrap_prices_page(
                 vegetable_name=vegetable_name,
                 start_date=start_date,
                 end_date=end_date,
@@ -155,33 +154,37 @@ class PlantsCouncilScraper:
 
         self.logger.info(f"Scraped {len(vegetable_prices)} dates prices data "
                          f"of {vegetable_name} "
-                         f"between {start_date.strftime(LOG_DATE_FORMAT)} "
-                         f"and {end_date.strftime(LOG_DATE_FORMAT)}")
+                         f"between {start_date.strftime(GENERAL_DATE_FORMAT)} "
+                         f"and {end_date.strftime(GENERAL_DATE_FORMAT)}")
 
         return vegetable_prices
 
-    def save_prices_in_db(self, prices_to_dates: Dict[str, Any]) -> int:
+    def save_prices_in_db(
+        self, 
+        vegetable_prices_data: List[Dict[str, Any]]
+    ) -> int:
         """ 
-        Given a dict of historical prices, save prices only if they aren't
-        exists in the DB
+        Given a dict of vegetable historical prices, save prices only if they 
+        aren't exists in the DB
 
         :return: number of records saved in the DB
         """
-        update_or_save_operations = [
-            UpdateOne(
-                {"vegetable_name": doc["vegetable_name"], "date": doc["date"]},
-                {"$set": doc},
-                upsert=True
+        upserted_docs_amount = 0
+        
+        for doc in vegetable_prices_data:
+            doc_id = f"{doc['vegetable_name']}_{doc['date'].strftime(GENERAL_DATE_FORMAT)}"
+            response = elastic_client.update(
+                index=MARKET_PRICES_INDEX,
+                id=doc_id,
+                body={
+                    "doc": doc,
+                    "doc_as_upsert": True
+                }
             )
-            for doc in prices_to_dates
-        ]
+            if response["result"] in ("created","updated"):
+                upserted_docs_amount += 1 
 
-        if update_or_save_operations:
-            results = market_prices_collection.bulk_write(
-                update_or_save_operations)
-            return results.upserted_count
-
-        return 0
+        return upserted_docs_amount
 
     def save_historic_prices(
         self,
@@ -210,8 +213,8 @@ class PlantsCouncilScraper:
 
         self.logger.info(f"Saved {saved_dates_amount} dates prices data of "
                          f"{vegetable_name} "
-                         f"between {start_date.strftime(LOG_DATE_FORMAT)} "
-                         f"and {end_date.strftime(LOG_DATE_FORMAT)}")
+                         f"between {start_date.strftime(GENERAL_DATE_FORMAT)} "
+                         f"and {end_date.strftime(GENERAL_DATE_FORMAT)}")
         return saved_dates_amount
 
 

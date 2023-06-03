@@ -1,13 +1,17 @@
 """ General utils for the service """
 
-from pymongo import MongoClient
-
 from app.config import settings
+from elasticsearch import Elasticsearch
 
-DB_NAME = "data_collector_db"
-MARKET_PRICES_COLLECTION_NAME = "market_prices_collection_name"
+MARKET_PRICES_INDEX = "market_prices_index"
+
+ELASTICSEARCH_URL = f"{settings.elastic_protocol}://" \
+                    f"{settings.elastic_hostname}:" \
+                    f"{settings.elastic_port}"
+elastic_client = Elasticsearch(ELASTICSEARCH_URL)
 
 
-mongo_client = MongoClient(settings.mongo_hostname, settings.mongo_port)
-mongo_db = mongo_client[DB_NAME]
-market_prices_collection = mongo_db[MARKET_PRICES_COLLECTION_NAME]
+def create_market_prices_index() -> None:
+    """ Create market prices index if it doesn't exist """
+    if not elastic_client.indices.exists(index=MARKET_PRICES_INDEX):
+        elastic_client.indices.create(index=MARKET_PRICES_INDEX)

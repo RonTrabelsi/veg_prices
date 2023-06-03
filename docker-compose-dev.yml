@@ -2,11 +2,23 @@ version: '3.9'
 
 services:
 
-  mongodb:
-    image: mongo:latest
-    volumes:
-      - './services/mongodb/db:/data/db'
-    expose:
-      - 27017
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    environment:
+      - xpack.security.enabled=false
+      - "discovery.type=single-node"
     ports:
-      - 27017:27017
+      - 9200:9200
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    ports:
+      - 5601:5601
+    volumes:
+      - kibana-data:/usr/share/kibana/data

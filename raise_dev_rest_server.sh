@@ -1,6 +1,9 @@
 APP_PATH=./services/data_collector
 INTERPRETER_PATH=../../venv/bin/python
 
+# Start server dependencies
+#docker-compose -f docker-compose-dev.yml up -d
+
 # Set project as cwd
 cd $APP_PATH
 

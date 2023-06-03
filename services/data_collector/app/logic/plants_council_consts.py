@@ -33,7 +33,7 @@ REQUEST_END_DATE_FORMAT: str = "%Y-%m-%d"
 # Date format of the respone
 RESPONSE_DATE_FORMAT: str = "%d/%m/%y"
 
-LOG_DATE_FORMAT: str = "%d/%m/%Y"
+GENERAL_DATE_FORMAT: str = "%d/%m/%Y"
 
 # Regex Pattern to extract the prices table from the response HTML
 PRICES_TABLE_PATTERN: str = r'<tbody>\\r\\n\\t<tr class="rgRow tblPricesCells" id="ctl02_RadGrid1_ctl00__0" style="text-align:right;">(.*?)</tbody>\\r\\n\\r\\n</table>'

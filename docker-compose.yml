@@ -2,32 +2,42 @@ version: '3.9'
 
 services:
 
-  mongodb:
-    image: mongo:latest
-    volumes:
-      - './services/mongodb/db:/data/db'
-    expose:
-      - 27017
-    ports:
-      - 27017:27017
-
   data_collector:
     build:
       context: ./services/data_collector
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
     env_file:
       - ./services/data_collector/data_collector.env
     entrypoint: ['/usr/src/data_collector/entrypoint.sh']
-    expose:
-      - 80
     ports:
       - 80:80
     depends_on:
-      - mongodb
+      - elasticsearch
+    restart: on-failure
 
-  # grafana:
-  #   image: grafana:latest
-  #   expose:
-  #     - 3000
-  #   ports:
-  #     - 3000:3000
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    environment:
+      - xpack.security.enabled=false
+      - "discovery.type=single-node"
+    ports:
+      - 9200:9200
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    restart: on-failure
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    ports:
+      - 5601:5601
+    volumes:
+      - kibana-data:/usr/share/kibana/data
+    restart: on-failure
+
+volumes:
+   elasticsearch-data:
+   kibana-data:

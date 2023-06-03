@@ -1,9 +1,9 @@
 #!/bin/sh
 
-echo "Waiting for mongo..."
+echo "Waiting for elasticsearch..."
 
 # scan the port to see whether postgres database is ready or not
-while ! nc -z ${MONGO_HOSTNAME} ${MONGO_PORT}; do
+while ! nc -z ${ELASTIC_HOSTNAME} ${ELASTIC_PORT}; do
   sleep 0.1
 done
 
