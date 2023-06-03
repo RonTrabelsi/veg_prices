@@ -3,7 +3,7 @@ version: '3.9'
 services:
 
   mongodb:
-    image: mongo
+    image: mongo:latest
     volumes:
       - './services/mongodb/db:/data/db'
     expose:
@@ -19,11 +19,15 @@ services:
       - ./services/data_collector/data_collector.env
     entrypoint: ['/usr/src/data_collector/entrypoint.sh']
     expose:
-      - 8000
+      - 80
     ports:
-      - 8000:8000
+      - 80:80
     depends_on:
       - mongodb
 
-
-    
+  # grafana:
+  #   image: grafana:latest
+  #   expose:
+  #     - 3000
+  #   ports:
+  #     - 3000:3000

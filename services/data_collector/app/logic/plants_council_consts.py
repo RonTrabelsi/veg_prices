@@ -3,8 +3,8 @@
 from enum import Enum
 from typing import Dict
 
-# Plant Council website URL
-REQUEST_URL: str = 'http://plants.moonsitesoftware.co.il/index.aspx'
+# Plants Council website URL
+PLANTS_COUNCIL_WEBSITE_URL: str = 'http://plants.moonsitesoftware.co.il/index.aspx'
 
 # Request variables fields names
 class RequestFields(Enum):
@@ -33,6 +33,8 @@ REQUEST_END_DATE_FORMAT: str = "%Y-%m-%d"
 # Date format of the respone
 RESPONSE_DATE_FORMAT: str = "%d/%m/%y"
 
+LOG_DATE_FORMAT: str = "%d/%m/%Y"
+
 # Regex Pattern to extract the prices table from the response HTML
 PRICES_TABLE_PATTERN: str = r'<tbody>\\r\\n\\t<tr class="rgRow tblPricesCells" id="ctl02_RadGrid1_ctl00__0" style="text-align:right;">(.*?)</tbody>\\r\\n\\r\\n</table>'
 
@@ -47,9 +49,3 @@ ROW_SPECIAL_PRICE_PATTERN: str = r'<td style="width:115px;">.*?</td><td class="p
 
 # The HTML delimeter between rows
 ROWS_DELIMITER: str = "</tr>"
-
-# Number of rows per request according to pagination limit
-ROWS_PER_REQUEST: int = 100
-
-# 5 work days per month in the common case
-WORK_DAYS_PER_WEEK: float = 5/7

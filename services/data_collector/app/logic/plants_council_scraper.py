@@ -8,19 +8,22 @@ from typing import Any, Dict, Optional
 
 from app.database import market_prices_collection
 from app.loggers import Loggers
-from app.logic.veg_council_consts import (PRICES_TABLE_PATTERN, REQUEST_DATA,
-                                          REQUEST_END_DATE_FORMAT,
-                                          REQUEST_START_DATE_FORMAT,
-                                          REQUEST_URL, RESPONSE_DATE_FORMAT,
-                                          ROW_DATE_PATTERN,
-                                          ROW_REGULAR_PRICE_PATTERN,
-                                          ROW_SPECIAL_PRICE_PATTERN,
-                                          ROWS_DELIMITER, RequestFields)
+from app.logic.plants_council_consts import (LOG_DATE_FORMAT,
+                                             PLANTS_COUNCIL_WEBSITE_URL,
+                                             PRICES_TABLE_PATTERN,
+                                             REQUEST_DATA,
+                                             REQUEST_END_DATE_FORMAT,
+                                             REQUEST_START_DATE_FORMAT,
+                                             RESPONSE_DATE_FORMAT,
+                                             ROW_DATE_PATTERN,
+                                             ROW_REGULAR_PRICE_PATTERN,
+                                             ROW_SPECIAL_PRICE_PATTERN,
+                                             ROWS_DELIMITER, RequestFields)
 from pymongo import UpdateOne
 from requests import Session
 
 
-class VegCouncilScraper:
+class PlantsCouncilScraper:
     def __init__(self) -> None:
         """ Initialize regex patterns and website session """
         self.prices_table_pattern = compile(PRICES_TABLE_PATTERN)
@@ -38,7 +41,7 @@ class VegCouncilScraper:
         """ :return: The end date to the request in the needed format """
         return end_date.strftime(REQUEST_END_DATE_FORMAT)
 
-    def build_request_data(
+    def build_request_body(
         self,
         vegetable_name: str,
         start_date: datetime,
@@ -57,19 +60,23 @@ class VegCouncilScraper:
 
         return request_data
 
-    def request_prices(
+    def scrap_prices_page(
         self,
         vegetable_name: str,
         start_date: datetime,
         end_date: datetime,
         page_number: int,
-    ) -> Dict[datetime, float]:
-        """ Get the prices of the vegetable from the website """
-        request_data = self.build_request_data(vegetable_name=vegetable_name,
+    ) -> Dict[str, Any]:
+        """ 
+        Scrap a page of the prices of the vegetable from the plants council 
+        website 
+        """
+        request_data = self.build_request_body(vegetable_name=vegetable_name,
                                                start_date=start_date,
                                                end_date=end_date,
                                                page_number=page_number)
-        response = self.session.post(REQUEST_URL, data=request_data)
+        response = self.session.post(PLANTS_COUNCIL_WEBSITE_URL,
+                                     data=request_data)
 
         raw_table = findall(self.prices_table_pattern, str(response.content))
         raw_table_data = raw_table[0] if raw_table else ""
@@ -82,7 +89,9 @@ class VegCouncilScraper:
     ) -> Dict[str, Any]:
         """ 
         Given a vegetable name and its prices table, return the its price per
-        date in the relevant format for indexing  
+        date in the relevant format for indexing 
+
+        :return: list of all the prices in the given table
         """
         splitted_price_table = prices_table_data.split(ROWS_DELIMITER)[:-1]
         prices_to_dates = [
@@ -116,15 +125,17 @@ class VegCouncilScraper:
         except IndexError:
             return None
 
-    def get_historic_prices(
+    def scrap_historic_prices(
         self,
         vegetable_name: str,
         start_date: datetime,
         end_date: datetime,
-    ) -> Dict[datetime, float]:
+    ) -> Dict[str, Any]:
         """ 
-        Given a vegetable name, start_date and end_date, return all its 
-        prices data in this period 
+        Given a vegetable name, a start date an and end date, scrap all the
+        vegetable prices data between the start and the end date
+
+        :return: mapping between the dates and the prices
         """
         vegetable_prices = []
         cur_page = 1
@@ -137,10 +148,15 @@ class VegCouncilScraper:
                 end_date=end_date,
                 page_number=cur_page,
             )
-            self.logger.debug(f"Got {len(cur_prices)} new dates prices data" /
+            self.logger.debug(f"Got {len(cur_prices)} new dates prices data"
                               f"for {vegetable_name}")
             vegetable_prices += cur_prices
             cur_page += 1
+
+        self.logger.info(f"Scraped {len(vegetable_prices)} dates prices data "
+                         f"of {vegetable_name} "
+                         f"between {start_date.strftime(LOG_DATE_FORMAT)} "
+                         f"and {end_date.strftime(LOG_DATE_FORMAT)}")
 
         return vegetable_prices
 
@@ -159,12 +175,12 @@ class VegCouncilScraper:
             )
             for doc in prices_to_dates
         ]
-        
+
         if update_or_save_operations:
             results = market_prices_collection.bulk_write(
                 update_or_save_operations)
             return results.upserted_count
-        
+
         return 0
 
     def save_historic_prices(
@@ -183,7 +199,7 @@ class VegCouncilScraper:
         cur_page = 1
 
         while cur_prices:
-            cur_prices = self.request_prices(
+            cur_prices = self.scrap_prices_page(
                 vegetable_name=vegetable_name,
                 start_date=start_date,
                 end_date=end_date,
@@ -192,7 +208,12 @@ class VegCouncilScraper:
             saved_dates_amount += self.save_prices_in_db(cur_prices)
             cur_page += 1
 
+        self.logger.info(f"Saved {saved_dates_amount} dates prices data of "
+                         f"{vegetable_name} "
+                         f"between {start_date.strftime(LOG_DATE_FORMAT)} "
+                         f"and {end_date.strftime(LOG_DATE_FORMAT)}")
         return saved_dates_amount
 
 
-veg_council_scraper = VegCouncilScraper()
+# Initialize global scrapper
+plants_council_scraper = PlantsCouncilScraper()
