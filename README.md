@@ -8,3 +8,4 @@ The data is scraped on demand from Plants Council Website, indexed to elasticsea
 - Elasticsearch - For rhe indexing. 
 - Kibana - In order to visualize the data. 
 
+![Alt text](image link)
