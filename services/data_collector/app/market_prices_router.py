@@ -34,10 +34,10 @@ def load_market_prices(request: MarketPricesRequest) -> int:
     "/scrap_prices",
     summary="Scrap prices of the given vegetable in the given period",
     response_description="Vegetable prices per date")
-def scrap_market_prices(
+def scrap_market_prices( #TODO: Change to pydantic model
     vegetable_name: str,
     start_date: datetime = DEFAULT_START_DATE,
-    end_date: datetime = DEFAULT_END_DATE,
+    end_date: datetime = datetime.now(),
 ) -> List[Dict[datetime, Dict[str, float]]]:
     vegetable_prices_data = plants_council_scraper.scrap_historic_prices(
         vegetable_name=vegetable_name,
@@ -51,7 +51,7 @@ def scrap_market_prices(
     "/",
     summary="Get a period vegetable prices from the DB",
     response_description="Vegetable prices per date")
-def get_market_prices(
+def get_market_prices(  #TODO: Change to pydantic model
     vegetable_name: str
 ) -> List[Dict[datetime, Dict[str, float]]]:
     matched_vegetable_query = {"match": {"vegetable_name": vegetable_name}}

@@ -38,7 +38,8 @@ def format_vegetable_prices_data(
 
 def load_default_market_prices() -> None:
     """ Scrap and dave default vegetables prices """
+    current_date = datetime.now()
     for vegetable in DEFAULT_MARKET_PRICES_VEGETABLES:
         plants_council_scraper.save_historic_prices(vegetable,
                                                     DEFAULT_START_DATE,
-                                                    DEFAULT_END_DATE)
+                                                    current_date)

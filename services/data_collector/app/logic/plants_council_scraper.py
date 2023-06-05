@@ -186,7 +186,7 @@ class PlantsCouncilScraper:
 
         return upserted_docs_amount
 
-    def save_historic_prices(
+    def save_historic_prices( #TODO: Have only one function which iterate the pages
         self,
         vegetable_name: str,
         start_date: datetime,
