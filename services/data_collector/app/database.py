@@ -5,10 +5,10 @@ from elasticsearch import Elasticsearch
 
 MARKET_PRICES_INDEX = "market_prices_index"
 
-ELASTICSEARCH_URL = f"{settings.elastic_protocol}://" \
+elasticsearch_url = f"{settings.elastic_protocol}://" \
                     f"{settings.elastic_hostname}:" \
                     f"{settings.elastic_port}"
-elastic_client = Elasticsearch(ELASTICSEARCH_URL)
+elastic_client = Elasticsearch(elasticsearch_url)
 
 
 def create_market_prices_index() -> None:

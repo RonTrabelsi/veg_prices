@@ -6,13 +6,12 @@ from logging import getLogger
 from re import compile, findall
 from typing import Any, Dict, List, Optional
 
-from app.database import elastic_client, MARKET_PRICES_INDEX
+from app.database import MARKET_PRICES_INDEX, elastic_client
 from app.loggers import Loggers
 from app.logic.plants_council_consts import (GENERAL_DATE_FORMAT,
                                              PLANTS_COUNCIL_WEBSITE_URL,
                                              PRICES_TABLE_PATTERN,
-                                             REQUEST_DATA,
-                                             REQUEST_DATE_FORMAT,
+                                             REQUEST_DATA, REQUEST_DATE_FORMAT,
                                              RESPONSE_DATE_FORMAT,
                                              ROW_DATE_PATTERN,
                                              ROW_REGULAR_PRICE_PATTERN,
@@ -25,9 +24,9 @@ class PlantsCouncilScraper:
     def __init__(self) -> None:
         """ Initialize regex patterns and website session """
         self.prices_table_pattern = compile(PRICES_TABLE_PATTERN)
-        self.row_date_pattern = compile(ROW_DATE_PATTERN)
-        self.row_regular_price_pattern = compile(ROW_REGULAR_PRICE_PATTERN)
-        self.row_special_price_pattern = compile(ROW_SPECIAL_PRICE_PATTERN)
+        self.date_pattern = compile(ROW_DATE_PATTERN)
+        self.regular_price_pattern = compile(ROW_REGULAR_PRICE_PATTERN)
+        self.special_price_pattern = compile(ROW_SPECIAL_PRICE_PATTERN)
         self.session = Session()
         self.logger = getLogger(Loggers.DATA_COLLECTOR_LOGGER.value)
 
@@ -86,7 +85,7 @@ class PlantsCouncilScraper:
 
         :return: list of all the prices in the given table
         """
-        splitted_price_table = prices_table_data.split(ROWS_DELIMITER)[:-1]
+        splitted_prices_table = prices_table_data.split(ROWS_DELIMITER)[:-1]
         prices_to_dates = [
             {
                 "vegetable_name": vegetable_name,
@@ -94,26 +93,25 @@ class PlantsCouncilScraper:
                 "regular_price": self.extract_regular_price(row_data),
                 "special_price": self.extract_special_price(row_data),
             }
-            for row_data in splitted_price_table
+            for row_data in splitted_prices_table
         ]
         return prices_to_dates
 
     def extract_date(self, row_data: str) -> datetime:
         """ :return: Date extracted from the row data """
-        raw_date = findall(self.row_date_pattern, row_data)[0]
+        raw_date = findall(self.date_pattern, row_data)[0]
         date = datetime.strptime(raw_date, RESPONSE_DATE_FORMAT)
         return date
 
     def extract_regular_price(self, row_data: str) -> float:
         """ :return: Regular price extracted from the row data """
-        regular_price = findall(self.row_regular_price_pattern, row_data)[0]
+        regular_price = findall(self.regular_price_pattern, row_data)[0]
         return float(regular_price)
 
     def extract_special_price(self, row_data: str) -> Optional[float]:
         """ :return: Special price extracted from the row data """
         try:
-            special_price = findall(
-                self.row_special_price_pattern, row_data)[0]
+            special_price = findall(self.special_price_pattern, row_data)[0]
             return float(special_price)
         except IndexError:
             return None
@@ -132,12 +130,16 @@ class PlantsCouncilScraper:
 
         :return: mapping between the dates and the prices
         """
-        vegetable_prices = []
+        vegetable_historic_prices = []
         saved_dates_amount = 0
         scraped_dates_amount = 0
 
         cur_page = 1
         cur_prices = True
+
+        self.logger.info(f"Starting to scrap {vegetable_name} historic prices "
+                         f"between {start_date.strftime(GENERAL_DATE_FORMAT)} "
+                         f"and {end_date.strftime(GENERAL_DATE_FORMAT)}")
 
         while cur_prices:
             cur_prices = self.scrap_prices_page(
@@ -152,7 +154,7 @@ class PlantsCouncilScraper:
                 saved_dates_amount += self.save_prices_in_db(cur_prices)
 
             if get_results:
-                vegetable_prices += cur_prices
+                vegetable_historic_prices += cur_prices
 
             scraped_dates_amount += len(cur_prices)
             cur_page += 1
@@ -164,7 +166,7 @@ class PlantsCouncilScraper:
                          f"and {end_date.strftime(GENERAL_DATE_FORMAT)}")
 
         if get_results:
-            return vegetable_prices
+            return vegetable_historic_prices
 
     def save_prices_in_db(
         self,
