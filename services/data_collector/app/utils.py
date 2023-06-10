@@ -17,8 +17,8 @@ DEFAULT_MARKET_PRICES_VEGETABLES = [
 ]
 
 
-def format_vegetable_prices_data(
-    vegetable_prices_data: Dict[str, Any]
+def format_prices_data(
+    prices_data: Dict[str, Any]
 ) -> List[Dict[datetime, Dict[str, float]]]:
     """ 
     :return: the given vegetable prices data formatted to prices per date 
@@ -30,7 +30,7 @@ def format_vegetable_prices_data(
                 "special_price": date_data["special_price"],
             }
         }
-        for date_data in vegetable_prices_data
+        for date_data in prices_data
     ]
 
     return prices_per_dates

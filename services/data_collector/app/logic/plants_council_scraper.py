@@ -12,8 +12,7 @@ from app.logic.plants_council_consts import (GENERAL_DATE_FORMAT,
                                              PLANTS_COUNCIL_WEBSITE_URL,
                                              PRICES_TABLE_PATTERN,
                                              REQUEST_DATA,
-                                             REQUEST_END_DATE_FORMAT,
-                                             REQUEST_START_DATE_FORMAT,
+                                             REQUEST_DATE_FORMAT,
                                              RESPONSE_DATE_FORMAT,
                                              ROW_DATE_PATTERN,
                                              ROW_REGULAR_PRICE_PATTERN,
@@ -32,13 +31,9 @@ class PlantsCouncilScraper:
         self.session = Session()
         self.logger = getLogger(Loggers.DATA_COLLECTOR_LOGGER.value)
 
-    def format_start_date(self, start_date: datetime) -> str:
-        """ :return: The start date to the request in the needed format """
-        return start_date.strftime(REQUEST_START_DATE_FORMAT)
-
-    def format_end_date(self, end_date: datetime) -> str:
-        """ :return: The end date to the request in the needed format """
-        return end_date.strftime(REQUEST_END_DATE_FORMAT)
+    def format_date(self, date: datetime) -> str:
+        """ :return: The date in the request needed format """
+        return date.strftime(REQUEST_DATE_FORMAT)
 
     def build_request_body(
         self,
@@ -51,10 +46,9 @@ class PlantsCouncilScraper:
         request_data = deepcopy(REQUEST_DATA)
 
         request_data[RequestFields.VEGETABLE_NAME.value] = vegetable_name
-        request_data[RequestFields.START_DATE.value] = self.format_start_date(
+        request_data[RequestFields.START_DATE.value] = self.format_date(
             start_date)
-        request_data[RequestFields.END_DATE.value] = self.format_end_date(
-            end_date)
+        request_data[RequestFields.END_DATE.value] = self.format_date(end_date)
         request_data[RequestFields.PAGE_NUMBER.value] = page_number
 
         return request_data
@@ -129,6 +123,8 @@ class PlantsCouncilScraper:
         vegetable_name: str,
         start_date: datetime,
         end_date: datetime,
+        save: bool = True,
+        get_results: bool = True,
     ) -> Dict[str, Any]:
         """ 
         Given a vegetable name, a start date an and end date, scrap all the
@@ -137,6 +133,9 @@ class PlantsCouncilScraper:
         :return: mapping between the dates and the prices
         """
         vegetable_prices = []
+        saved_dates_amount = 0
+        scraped_dates_amount = 0
+
         cur_page = 1
         cur_prices = True
 
@@ -149,18 +148,26 @@ class PlantsCouncilScraper:
             )
             self.logger.debug(f"Got {len(cur_prices)} new dates prices data"
                               f"for {vegetable_name}")
-            vegetable_prices += cur_prices
+            if save:
+                saved_dates_amount += self.save_prices_in_db(cur_prices)
+
+            if get_results:
+                vegetable_prices += cur_prices
+
+            scraped_dates_amount += len(cur_prices)
             cur_page += 1
 
-        self.logger.info(f"Scraped {len(vegetable_prices)} dates prices data "
-                         f"of {vegetable_name} "
+        self.logger.info(f"Scraped {scraped_dates_amount} dates prices data "
+                         f"with total new {saved_dates_amount} dates data of "
+                         f"{vegetable_name} "
                          f"between {start_date.strftime(GENERAL_DATE_FORMAT)} "
                          f"and {end_date.strftime(GENERAL_DATE_FORMAT)}")
 
-        return vegetable_prices
+        if get_results:
+            return vegetable_prices
 
     def save_prices_in_db(
-        self, 
+        self,
         vegetable_prices_data: List[Dict[str, Any]]
     ) -> int:
         """ 
@@ -170,7 +177,7 @@ class PlantsCouncilScraper:
         :return: number of records saved in the DB
         """
         upserted_docs_amount = 0
-        
+
         for doc in vegetable_prices_data:
             doc_id = f"{doc['vegetable_name']}_{doc['date'].strftime(GENERAL_DATE_FORMAT)}"
             response = elastic_client.update(
@@ -181,41 +188,10 @@ class PlantsCouncilScraper:
                     "doc_as_upsert": True
                 }
             )
-            if response["result"] in ("created","updated"):
-                upserted_docs_amount += 1 
+            if response["result"] in ("created", "updated"):
+                upserted_docs_amount += 1
 
         return upserted_docs_amount
-
-    def save_historic_prices( #TODO: Have only one function which iterate the pages
-        self,
-        vegetable_name: str,
-        start_date: datetime,
-        end_date: datetime,
-    ) -> int:
-        """ 
-        Save the given vegetable prices in the given period in the DB  
-
-        :return: amount of dates saved
-        """
-        saved_dates_amount = 0
-        cur_prices = True
-        cur_page = 1
-
-        while cur_prices:
-            cur_prices = self.scrap_prices_page(
-                vegetable_name=vegetable_name,
-                start_date=start_date,
-                end_date=end_date,
-                page_number=cur_page,
-            )
-            saved_dates_amount += self.save_prices_in_db(cur_prices)
-            cur_page += 1
-
-        self.logger.info(f"Saved {saved_dates_amount} dates prices data of "
-                         f"{vegetable_name} "
-                         f"between {start_date.strftime(GENERAL_DATE_FORMAT)} "
-                         f"and {end_date.strftime(GENERAL_DATE_FORMAT)}")
-        return saved_dates_amount
 
 
 # Initialize global scrapper

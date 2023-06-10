@@ -2,12 +2,12 @@
 
 echo "Waiting for elasticsearch..."
 
-# scan the port to see whether postgres database is ready or not
+# Wait for ealsticsearch 
 while ! nc -z ${ELASTIC_HOSTNAME} ${ELASTIC_PORT}; do
   sleep 0.1
 done
 
-echo "Mongo started"
+echo "elasticsearch started"
 
 
 echo "Start REST server on ${SERVER_LISTENING_IP}:${SERVER_LISTENING_PORT}"
