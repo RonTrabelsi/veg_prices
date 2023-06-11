@@ -5,9 +5,8 @@ from typing import Any, Dict, List
 
 from app.logic.plants_council_scraper import plants_council_scraper
 
-# default start date and end date for prices scraping
-DEFAULT_START_DATE = datetime(2000, 1, 1)
-DEFAULT_END_DATE = datetime.now()
+# default start date for prices scraping
+DEFAULT_START_DATE = datetime(2000, 1, 1) 
 
 # Default vegetables to load their market prices info
 DEFAULT_MARKET_PRICES_VEGETABLES = [

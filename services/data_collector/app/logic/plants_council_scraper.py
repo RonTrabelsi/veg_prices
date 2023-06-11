@@ -30,7 +30,7 @@ class PlantsCouncilScraper:
         self.session = Session()
         self.logger = getLogger(Loggers.DATA_COLLECTOR_LOGGER.value)
 
-    def format_date(self, date: datetime) -> str:
+    def prep_request_date(self, date: datetime) -> str:
         """ :return: The date in the request needed format """
         return date.strftime(REQUEST_DATE_FORMAT)
 
@@ -45,9 +45,10 @@ class PlantsCouncilScraper:
         request_data = deepcopy(REQUEST_DATA)
 
         request_data[RequestFields.VEGETABLE_NAME.value] = vegetable_name
-        request_data[RequestFields.START_DATE.value] = self.format_date(
+        request_data[RequestFields.START_DATE.value] = self.prep_request_date(
             start_date)
-        request_data[RequestFields.END_DATE.value] = self.format_date(end_date)
+        request_data[RequestFields.END_DATE.value] = self.prep_request_date(
+            end_date)
         request_data[RequestFields.PAGE_NUMBER.value] = page_number
 
         return request_data
