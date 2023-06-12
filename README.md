@@ -1,6 +1,6 @@
 # veg_prices
 
-The idea of this project is to give agricultural the ability to decide how to manage their harvesting.
+The idea of this project is to give agriculturals the ability to decide how to manage their harvesting.
 The data is scraped on demand from Plants Council Website, indexed to elasticsearch and visualize using kibana. 
 
 ## The components:
