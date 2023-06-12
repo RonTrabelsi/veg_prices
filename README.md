@@ -14,4 +14,4 @@ The data is scraped on demand from Plants Council Website, indexed to elasticsea
 3. For configured rest requests, use [this](market_prices_client.paw) configuration to RapidApi client (Mac)
 
 ## Example
-![Alt text](https://github.com/RonTrabelsi/veg_prices/blob/b93d128941c8c3c29420102972a0dcdc88c911a8/docs/tomatos_prices.png)
+![Alt text](https://github.com/RonTrabelsi/veg_prices/blob/dea1a674a14559df0467a36933ce97963bba548f/docs/prices_example.png)
