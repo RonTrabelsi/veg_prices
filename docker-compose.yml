@@ -3,8 +3,7 @@ version: '3.9'
 services:
 
   data_collector:
-    build:
-      dockerfile: dockerfile
+    build: .
     env_file:
       - ./data_collector.env
     entrypoint: ['/usr/src/data_collector/entrypoint.sh']
