@@ -11,4 +11,4 @@ echo "elasticsearch started"
 
 
 echo "Start REST server on ${SERVER_LISTENING_IP}:${SERVER_LISTENING_PORT}"
-uvicorn app.app:app --host ${SERVER_LISTENING_IP} --port ${SERVER_LISTENING_PORT} --workers ${SERVER_WORKERS_AMOUNT}
+uvicorn src.app:app --host ${SERVER_LISTENING_IP} --port ${SERVER_LISTENING_PORT} --workers ${SERVER_WORKERS_AMOUNT}
