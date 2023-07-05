@@ -10,8 +10,8 @@ The data is scraped on demand from Plants Council Website, indexed to elasticsea
 
 ## How to run?
 1. execute raise_app.sh script
-2. Load the [dashboard](services/kibana/dashboards/market_prices.ndjson) to kibana
+2. Load the [dashboard](assets/market_prices_dashboard.ndjson) to kibana
 3. For configured rest requests, use [this](market_prices_client.paw) configuration to RapidApi client (Mac)
 
 ## Example
-![Alt text](https://github.com/RonTrabelsi/veg_prices/blob/dea1a674a14559df0467a36933ce97963bba548f/docs/prices_example.png)
+![Alt text](assets/prices_example.png)

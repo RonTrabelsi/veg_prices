@@ -1,23 +1,20 @@
-""" Implement the endpoints for the app """
+""" Implement market prices router """
 
 from datetime import datetime
 from typing import Dict, List
 
-from app.config import settings
-from app.database import MARKET_PRICES_INDEX, elastic_client
-from app.logic.plants_council_scraper import plants_council_scraper
-from app.schemas import MarketPricesRequest
-from app.utils import format_prices_data
 from fastapi import APIRouter, Depends, HTTPException, status
+
+from src.config import settings
+from src.database import MARKET_PRICES_INDEX, elastic_client
+from src.core.plants_council_scraper import plants_council_scraper
+from src.schemas import MarketPricesRequest
+from src.utils import format_prices_data
 
 market_prices_router = APIRouter()
 
 
-@market_prices_router.post(
-    "/load_prices",
-    status_code=status.HTTP_201_CREATED,
-    summary="Save the prices of the given vegetable in the given period",
-)
+@market_prices_router.post("/load_prices", status_code=status.HTTP_201_CREATED)
 def load_market_prices(request: MarketPricesRequest):
     plants_council_scraper.scrap_historic_prices(
         vegetable_name=request.vegetable_name,
@@ -28,10 +25,7 @@ def load_market_prices(request: MarketPricesRequest):
     )
 
 
-@market_prices_router.get(
-    "/scrap_prices",
-    summary="Scrap prices of the given vegetable in the given period",
-    response_description="Vegetable prices per date")
+@market_prices_router.get("/scrap_prices")
 def scrap_market_prices(
     request: MarketPricesRequest = Depends()
 ) -> List[Dict[datetime, Dict[str, float]]]:
@@ -45,14 +39,11 @@ def scrap_market_prices(
     return format_prices_data(prices_data)
 
 
-@market_prices_router.get(
-    "/",
-    summary="Get a period vegetable prices from the DB",
-    response_description="Vegetable prices per date")
+@market_prices_router.get("/")
 def get_market_prices(
     request: MarketPricesRequest = Depends()
 ) -> List[Dict[datetime, Dict[str, float]]]:
-    matched_vegetable_query = {
+    matched_vegetable_prices_query = {
         "bool": {
             "must": [
                 {"match": {"vegetable_name": request.vegetable_name}},
@@ -63,9 +54,9 @@ def get_market_prices(
     no_metadata_filter = "hits.hits._source"
 
     response = elastic_client.search(index=MARKET_PRICES_INDEX,
-                                     query=matched_vegetable_query,
+                                     query=matched_vegetable_prices_query,
                                      filter_path=no_metadata_filter,
-                                     size=settings.max_prices_query_size)
+                                     size=settings.max_elasticsearch_query_size)
 
     if not response:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,

@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     elastic_protocol: str
 
     load_default_market_prices: bool
-    max_prices_query_size: int
+    max_elasticsearch_query_size: int
 
 
 settings: Settings = Settings()  # type: ignore

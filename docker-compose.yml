@@ -4,10 +4,9 @@ services:
 
   data_collector:
     build:
-      context: ./services/data_collector
       dockerfile: dockerfile
     env_file:
-      - ./services/data_collector/data_collector.env
+      - ./data_collector.env
     entrypoint: ['/usr/src/data_collector/entrypoint.sh']
     ports:
       - 80:80
