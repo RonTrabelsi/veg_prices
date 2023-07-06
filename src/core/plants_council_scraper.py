@@ -150,7 +150,7 @@ class PlantsCouncilScraper:
                 end_date=end_date,
                 page_number=cur_page,
             )
-            self.logger.debug(f"Got {len(cur_prices)} new dates prices data"
+            self.logger.debug(f"Got {len(cur_prices)} new dates prices data "
                               f"for {vegetable_name}")
 
             if save:
