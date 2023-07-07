@@ -5,12 +5,14 @@ from logging import getLogger
 from sched import scheduler
 from typing import List
 
-from src.core.plants_council_scraper import PlantsCouncilScraper
-from src.database import elastic_client
-from src.loggers import Loggers
+from common.plants_council_scraper import PlantsCouncilScraper
+from src.database import MARKET_PRICES_INDEX, es_client
+from src.loggers import PERIODIC_SCRAPER_LOGGER_NAME
 
 # Default start date of prices to load
 DEFAULT_START_DATE = datetime(2000, 1, 1)
+# Default days interval of prices to load
+DEFAULT_DAYS_INTERVAL = 1
 
 
 class PeriodicPricesScraper:
@@ -20,14 +22,20 @@ class PeriodicPricesScraper:
         self,
         vegetables: List[str],
         start_date: datetime = DEFAULT_START_DATE,
-        days_interval: int = 1,
+        days_interval: int = DEFAULT_DAYS_INTERVAL,
     ) -> None:
         self.vegetables = vegetables
         self.start_date = start_date
         self.interval = days_interval
+
         self.scheduler = scheduler()
-        self.logger = getLogger(Loggers.DATA_COLLECTOR_LOGGER.value)
-        self.plants_council_scraper = PlantsCouncilScraper(elastic_client)
+        logger = getLogger(PERIODIC_SCRAPER_LOGGER_NAME)
+        self.logger = logger
+        self.plants_council_scraper = PlantsCouncilScraper(
+            es_client=es_client,
+            logger=self.logger,
+            es_prices_index_name=MARKET_PRICES_INDEX
+        )
 
     def load_last_prices(self) -> None:
         """ Save vegetables prices from the last interval date until now """
@@ -86,12 +94,3 @@ class PeriodicPricesScraper:
         )
 
         self.scheduler.run()
-
-
-# Start the tracking
-vegetables_to_track = [
-    'עגבניות שרי אשכולות אכות מעולה',
-    'פלפל אדום איכות מעולה',
-    'בצל יבש',
-]
-PeriodicPricesScraper(vegetables=vegetables_to_track).track_prices()

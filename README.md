@@ -1,10 +1,11 @@
 # veg_prices
 
-The idea of this project is to give agriculturals the ability to decide how to manage their harvesting.
-The data is scraped on demand from Plants Council Website, indexed to elasticsearch and visualize using kibana. 
+The idea of this project is to give farmers the ability to decide how to manage their harvesting.
+The data is scraped on demand or periodically from Plants Council Website, indexed to elasticsearch and visualize using kibana. 
 
 ## The components:
-- Data collector - REST server which scrap data and load it to an elasticsearch on demand 
+- Rest Scraper - REST server which scrap data and load it to elasticsearch on demand 
+- Periodic Scraper - service which trigger scraping of selected vegetables everyday
 - Elasticsearch - For the indexing. 
 - Kibana - In order to visualize the data. 
 

@@ -1,17 +1,22 @@
 """ Implement market prices router """
 
 from datetime import datetime
+from logging import getLogger
 from typing import Dict, List
 
+from common.plants_council_scraper import PlantsCouncilScraper
 from fastapi import APIRouter, Depends, HTTPException, status
-
 from src.config import settings
-from src.core.plants_council_scraper import PlantsCouncilScraper
-from src.database import MARKET_PRICES_INDEX, elastic_client
+from src.database import MARKET_PRICES_INDEX, es_client
+from src.loggers import REST_SCRAPER_LOGGER_NAME
 from src.schemas import MarketPricesRequest
 from src.utils import format_prices_data
 
-plants_council_scraper = PlantsCouncilScraper(elastic_client=elastic_client)
+plants_council_scraper = PlantsCouncilScraper(
+    es_client=es_client,
+    logger=getLogger(REST_SCRAPER_LOGGER_NAME),
+    es_prices_index_name=MARKET_PRICES_INDEX,
+)
 
 market_prices_router = APIRouter()
 
@@ -55,10 +60,10 @@ def get_market_prices(
         }}
     no_metadata_filter = "hits.hits._source"
 
-    response = elastic_client.search(index=MARKET_PRICES_INDEX,
-                                     query=matched_vegetable_prices_query,
-                                     filter_path=no_metadata_filter,
-                                     size=settings.max_elasticsearch_query_size)
+    response = es_client.search(index=MARKET_PRICES_INDEX,
+                                query=matched_vegetable_prices_query,
+                                filter_path=no_metadata_filter,
+                                size=settings.max_es_query_size)
 
     if not response:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,

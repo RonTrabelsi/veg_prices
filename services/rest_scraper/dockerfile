@@ -11,15 +11,18 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # set working directory
-WORKDIR /usr/src/scraper
+WORKDIR /usr/src/rest_scraper
 
 # install dependencies
 RUN pip install --upgrade pip
-COPY ./requirements.txt /usr/src/scraper/requirements.txt
+COPY ./requirements.txt /usr/src/rest_scraper/requirements.txt
 RUN pip install -r requirements.txt
 
-# add app
-COPY . /usr/src/scraper
+# add app code
+COPY . /usr/src/rest_scraper
+
+# add common code
+COPY ../common/ /usr/src/rest_scraper/src
 
 # enable entrypoint
-RUN chmod +x /usr/src/scraper/entrypoint.sh
+RUN chmod +x /usr/src/rest_scraper/entrypoint.sh

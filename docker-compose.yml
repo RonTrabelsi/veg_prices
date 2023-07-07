@@ -2,13 +2,26 @@ version: '3.9'
 
 services:
 
-  scraper:
-    build: .
+  rest_scraper:
+    build:
+      context: ./services/rest_scraper
+      dockerfile: dockerfile
     env_file:
-      - ./prod.env
-    entrypoint: ['/usr/src/scraper/entrypoint.sh']
+      - ./services/rest_scraper/prod.env
+    entrypoint: ['/usr/src/rest_scraper/entrypoint.sh']
     ports:
       - 80:80
+    depends_on:
+      - elasticsearch
+    restart: on-failure
+
+  periodic_scraper:
+    build:
+      context: ./services/periodic_scraper
+      dockerfile: dockerfile
+    env_file:
+      - ./services/periodic_scraper/prod.env
+    entrypoint: ['/usr/src/periodic_scraper/entrypoint.sh']
     depends_on:
       - elasticsearch
     restart: on-failure

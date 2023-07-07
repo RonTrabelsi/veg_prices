@@ -1,0 +1,28 @@
+# pull official base image
+FROM python:3.11.3
+
+# install netcat
+RUN apt-get update && \
+    apt-get install -y netcat && \
+    apt-get clean
+
+# set environment varibles
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# set working directory
+WORKDIR /usr/src/periodic_scraper
+
+# install dependencies
+RUN pip install --upgrade pip
+COPY ./requirements.txt /usr/src/periodic_scraper/requirements.txt
+RUN pip install -r requirements.txt
+
+# add app code
+COPY . /usr/src/periodic_scraper
+
+# add common code
+COPY ../common/ /usr/src/periodic_scraper/src
+
+# enable entrypoint
+RUN chmod +x /usr/src/periodic_scraper/entrypoint.sh

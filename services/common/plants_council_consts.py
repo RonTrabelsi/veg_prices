@@ -1,19 +1,9 @@
 """ Consts for the scraper """
 
 from enum import Enum
-from typing import Dict
 
 # Plants Council website URL
 PLANTS_COUNCIL_WEBSITE_URL: str = 'http://plants.moonsitesoftware.co.il/index.aspx'
-
-# Request body fields names
-class RequestFields(Enum):
-    EVENT_TARGET = "__EVENTTARGET"
-    VIEW_STATE = "__VIEWSTATE"
-    VEGETABLE_NAME = "ctl02$Name"
-    START_DATE = "ctl02$FromDate$dateInput"
-    END_DATE = "ctl02$ToDate$dateInput"
-    PAGE_NUMBER = "ctl02$PricesViewPagination__CurrentPage"
 
 # Constant request values
 DEFAULT_EVENT_TARGET: str = 'ctl02$Search'
@@ -42,3 +32,13 @@ ROW_SPECIAL_PRICE_PATTERN: str = r'<td style="width:115px;">.*?</td><td class="p
 
 # The HTML delimeter between rows
 ROWS_DELIMITER: str = "</tr>"
+
+
+class RequestFields(Enum):
+    """ Request body fields names """
+    EVENT_TARGET = "__EVENTTARGET"
+    VIEW_STATE = "__VIEWSTATE"
+    VEGETABLE_NAME = "ctl02$Name"
+    START_DATE = "ctl02$FromDate$dateInput"
+    END_DATE = "ctl02$ToDate$dateInput"
+    PAGE_NUMBER = "ctl02$PricesViewPagination__CurrentPage"

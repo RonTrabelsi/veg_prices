@@ -1,29 +1,32 @@
 """ Implement client for CBS API """
 
 from datetime import datetime
-from logging import getLogger
+from logging import Logger
 from typing import Any, Dict, List, Optional
-from elasticsearch import Elasticsearch
 
+from elasticsearch import Elasticsearch
 from requests import Request, Session
 
-from src.database import STATISTICAL_DATA_INDEX
-from src.loggers import Loggers
-from src.core.cbs_consts import (API_ERR_MSG, CBS_DATA_PATH, CBS_WEBSITE_URL,
-                                  DEFAULT_PAGE_SIZE, ENGLISH_LANGUAGE_CODE,
-                                  GENERAL_DATE_FORMAT, JSON_FORMAT,
-                                  REQUEST_DATE_FORMAT, RESPONSE_DATE_FORMAT,
-                                  SHOULD_DOWNLOAD, RequestParams,
-                                  ResponseFields)
+from .cbs_consts import (API_ERR_MSG, CBS_DATA_PATH, CBS_WEBSITE_URL,
+                         DEFAULT_PAGE_SIZE, ENGLISH_LANGUAGE_CODE,
+                         GENERAL_DATE_FORMAT, JSON_FORMAT, REQUEST_DATE_FORMAT,
+                         RESPONSE_DATE_FORMAT, SHOULD_DOWNLOAD, RequestParams,
+                         ResponseFields)
 
 
 class CbsApiClient:
     """ Client to CBS API """
 
-    def __init__(self, elastic_client: Elasticsearch):
+    def __init__(
+        self,
+        es_client: Elasticsearch,
+        logger: Logger,
+        es_statistics_index_name: str,
+    ) -> None:
         self.session = Session()
-        self.logger = getLogger(Loggers.DATA_COLLECTOR_LOGGER.value)
-        self.elastic_client = elastic_client
+        self.logger = logger
+        self.es_client = es_client
+        self.es_statistics_index_name = es_statistics_index_name
 
     def build_request_params(
         self,
@@ -86,8 +89,8 @@ class CbsApiClient:
 
         for doc in data:
             doc_id = f"{doc['series_id']}_{doc['date'].strftime(RESPONSE_DATE_FORMAT)}"
-            response = self.elastic_client.update(
-                index=STATISTICAL_DATA_INDEX,
+            response = self.es_client.update(
+                index=self.es_statistics_index_name,
                 id=doc_id,
                 body={"doc": doc,
                       "doc_as_upsert": True}

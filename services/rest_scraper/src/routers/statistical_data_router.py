@@ -1,17 +1,22 @@
 """ Implement router of statistical data from CBS API """
 
 from datetime import datetime
+from logging import getLogger
 from typing import Any, Dict, List
 
+from common.cbs_api_client import CbsApiClient
 from fastapi import APIRouter, Depends, HTTPException, status
-
 from src.config import settings
-from src.core.cbs_api_client import CbsApiClient
-from src.database import STATISTICAL_DATA_INDEX, elastic_client
+from src.database import STATISTICS_INDEX, es_client
+from src.loggers import REST_SCRAPER_LOGGER_NAME
 from src.schemas import StatisticalDataRequest
 from src.utils import format_series_data
 
-cbs_api_client = CbsApiClient(elastic_client=elastic_client)
+cbs_api_client = CbsApiClient(
+    es_client=es_client,
+    logger=getLogger(REST_SCRAPER_LOGGER_NAME),
+    es_statistics_index_name=STATISTICS_INDEX
+)
 
 statistical_data_router = APIRouter()
 
@@ -55,10 +60,10 @@ def get_statistical_data(
         }}
     no_metadata_filter = "hits.hits._source"
 
-    response = elastic_client.search(index=STATISTICAL_DATA_INDEX,
-                                     query=matched_series_data_query,
-                                     filter_path=no_metadata_filter,
-                                     size=settings.max_elasticsearch_query_size)
+    response = es_client.search(index=STATISTICS_INDEX,
+                                query=matched_series_data_query,
+                                filter_path=no_metadata_filter,
+                                size=settings.max_es_query_size)
 
     if not response:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,

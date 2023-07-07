@@ -3,8 +3,6 @@
 from datetime import datetime
 from typing import Any, Dict, List
 
-from src.database import INDEXES, elastic_client
-
 # default start date for prices scraping
 DEFAULT_START_DATE = datetime(2000, 1, 1)
 
@@ -37,10 +35,3 @@ def format_series_data(
         for date_data in series_data
     ]
     return value_to_dates
-
-
-def create_indexes() -> None:
-    """ Create elasticsearch indexes """
-    for index in INDEXES:
-        if not elastic_client.indices.exists(index=index):
-            elastic_client.indices.create(index=index)

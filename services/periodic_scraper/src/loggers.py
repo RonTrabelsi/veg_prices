@@ -1,13 +1,8 @@
 """ Loggers configuration """
 
-from enum import Enum
 from logging import config
 
-
-class Loggers(Enum):
-    DATA_COLLECTOR_LOGGER = "data_collector_logger"
-    PRICES_TRACKER_LOGGER = "prices_tracker_logger"
-
+PERIODIC_SCRAPER_LOGGER_NAME = "periodic_scraper_logger"
 
 LOGGERS_CONF = {
     "version": 1,
@@ -16,12 +11,7 @@ LOGGERS_CONF = {
         "level": "INFO"
     },
     "loggers": {
-        Loggers.DATA_COLLECTOR_LOGGER.value: {
-            "handlers": ["console"],
-            "level": "DEBUG",
-            "propagate": False
-        },
-        Loggers.PRICES_TRACKER_LOGGER.value: {
+        PERIODIC_SCRAPER_LOGGER_NAME: {
             "handlers": ["console"],
             "level": "DEBUG",
             "propagate": False

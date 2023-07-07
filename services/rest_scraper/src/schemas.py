@@ -5,7 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel, validator
 
-from src.core.cbs_consts import CBS_SERIES_IDENTIFIERS_AMOUNT
+from common.cbs_consts import CBS_SERIES_IDENTIFIERS_AMOUNT
 from src.utils import DEFAULT_START_DATE
 
 
