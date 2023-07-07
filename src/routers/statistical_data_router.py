@@ -6,10 +6,12 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.config import settings
+from src.core.cbs_api_client import CbsApiClient
 from src.database import STATISTICAL_DATA_INDEX, elastic_client
-from src.core.cbs_api_client import cbs_api_client
 from src.schemas import StatisticalDataRequest
 from src.utils import format_series_data
+
+cbs_api_client = CbsApiClient(elastic_client=elastic_client)
 
 statistical_data_router = APIRouter()
 

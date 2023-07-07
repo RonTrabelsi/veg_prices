@@ -3,10 +3,11 @@
 from datetime import datetime
 from logging import getLogger
 from typing import Any, Dict, List, Optional
+from elasticsearch import Elasticsearch
 
 from requests import Request, Session
 
-from src.database import STATISTICAL_DATA_INDEX, elastic_client
+from src.database import STATISTICAL_DATA_INDEX
 from src.loggers import Loggers
 from src.core.cbs_consts import (API_ERR_MSG, CBS_DATA_PATH, CBS_WEBSITE_URL,
                                   DEFAULT_PAGE_SIZE, ENGLISH_LANGUAGE_CODE,
@@ -19,9 +20,10 @@ from src.core.cbs_consts import (API_ERR_MSG, CBS_DATA_PATH, CBS_WEBSITE_URL,
 class CbsApiClient:
     """ Client to CBS API """
 
-    def __init__(self):
+    def __init__(self, elastic_client: Elasticsearch):
         self.session = Session()
         self.logger = getLogger(Loggers.DATA_COLLECTOR_LOGGER.value)
+        self.elastic_client = elastic_client
 
     def build_request_params(
         self,
@@ -84,7 +86,7 @@ class CbsApiClient:
 
         for doc in data:
             doc_id = f"{doc['series_id']}_{doc['date'].strftime(RESPONSE_DATE_FORMAT)}"
-            response = elastic_client.update(
+            response = self.elastic_client.update(
                 index=STATISTICAL_DATA_INDEX,
                 id=doc_id,
                 body={"doc": doc,
@@ -145,7 +147,3 @@ class CbsApiClient:
                          f"and {end_date.strftime(GENERAL_DATE_FORMAT)}")
 
         return data
-
-
-# Initialize global CBS API client
-cbs_api_client = CbsApiClient()

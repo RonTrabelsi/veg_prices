@@ -1,37 +1,39 @@
 """ Implements Vegetables Council Website Scraper """
 
-from copy import deepcopy
 from datetime import datetime
 from logging import getLogger
 from re import compile, findall
 from typing import Any, Dict, List, Optional
 
+from elasticsearch import Elasticsearch
 from requests import Session
 
-from src.database import MARKET_PRICES_INDEX, elastic_client
-from src.loggers import Loggers
 from src.core.plants_council_consts import (DEFAULT_EVENT_TARGET,
-                                             DEFAULT_VIEW_STATE,
-                                             GENERAL_DATE_FORMAT,
-                                             PLANTS_COUNCIL_WEBSITE_URL,
-                                             PRICES_TABLE_PATTERN,
-                                             REQUEST_DATE_FORMAT,
-                                             RESPONSE_DATE_FORMAT,
-                                             ROW_DATE_PATTERN,
-                                             ROW_REGULAR_PRICE_PATTERN,
-                                             ROW_SPECIAL_PRICE_PATTERN,
-                                             ROWS_DELIMITER, RequestFields)
+                                            DEFAULT_VIEW_STATE,
+                                            GENERAL_DATE_FORMAT,
+                                            PLANTS_COUNCIL_WEBSITE_URL,
+                                            PRICES_TABLE_PATTERN,
+                                            REQUEST_DATE_FORMAT,
+                                            RESPONSE_DATE_FORMAT,
+                                            ROW_DATE_PATTERN,
+                                            ROW_REGULAR_PRICE_PATTERN,
+                                            ROW_SPECIAL_PRICE_PATTERN,
+                                            ROWS_DELIMITER, RequestFields)
+from src.database import MARKET_PRICES_INDEX
+from src.loggers import Loggers
 
 
 class PlantsCouncilScraper:
-    def __init__(self) -> None:
+    def __init__(self, elastic_client: Elasticsearch) -> None:
         """ Initialize regex patterns and website session """
+        self.session = Session()
+        self.logger = getLogger(Loggers.DATA_COLLECTOR_LOGGER.value)
+        self.elastic_client = elastic_client
+
         self.prices_table_pattern = compile(PRICES_TABLE_PATTERN)
         self.date_pattern = compile(ROW_DATE_PATTERN)
         self.regular_price_pattern = compile(ROW_REGULAR_PRICE_PATTERN)
         self.special_price_pattern = compile(ROW_SPECIAL_PRICE_PATTERN)
-        self.session = Session()
-        self.logger = getLogger(Loggers.DATA_COLLECTOR_LOGGER.value)
 
     def prep_request_date(self, date: datetime) -> str:
         """ :return: The date in the request needed format """
@@ -74,6 +76,7 @@ class PlantsCouncilScraper:
 
         raw_table = findall(self.prices_table_pattern, str(response.content))
         raw_table_data = raw_table[0] if raw_table else ""
+
         return self.extract_prices(vegetable_name, raw_table_data)
 
     def extract_prices(
@@ -182,7 +185,7 @@ class PlantsCouncilScraper:
 
         for doc in vegetable_prices_data:
             doc_id = f"{doc['vegetable_name']}_{doc['date'].strftime(GENERAL_DATE_FORMAT)}"
-            response = elastic_client.update(
+            response = self.elastic_client.update(
                 index=MARKET_PRICES_INDEX,
                 id=doc_id,
                 body={
@@ -194,7 +197,3 @@ class PlantsCouncilScraper:
                 upserted_docs_amount += 1
 
         return upserted_docs_amount
-
-
-# Initialize global scrapper
-plants_council_scraper = PlantsCouncilScraper()

@@ -6,10 +6,12 @@ from typing import Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.config import settings
+from src.core.plants_council_scraper import PlantsCouncilScraper
 from src.database import MARKET_PRICES_INDEX, elastic_client
-from src.core.plants_council_scraper import plants_council_scraper
 from src.schemas import MarketPricesRequest
 from src.utils import format_prices_data
+
+plants_council_scraper = PlantsCouncilScraper(elastic_client=elastic_client)
 
 market_prices_router = APIRouter()
 

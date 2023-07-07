@@ -6,6 +6,7 @@ from logging import config
 
 class Loggers(Enum):
     DATA_COLLECTOR_LOGGER = "data_collector_logger"
+    PRICES_TRACKER_LOGGER = "prices_tracker_logger"
 
 
 LOGGERS_CONF = {
@@ -15,11 +16,16 @@ LOGGERS_CONF = {
         "level": "INFO"
     },
     "loggers": {
-        f"{Loggers.DATA_COLLECTOR_LOGGER.value}": {
+        Loggers.DATA_COLLECTOR_LOGGER.value: {
             "handlers": ["console"],
             "level": "DEBUG",
             "propagate": False
-        }
+        },
+        Loggers.PRICES_TRACKER_LOGGER.value: {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False
+        },
     },
     "handlers": {
         "console": {
@@ -36,7 +42,5 @@ LOGGERS_CONF = {
     },
 }
 
-
-def load_loggers_conf() -> None:
-    """ Load loggers configuration """
-    config.dictConfig(LOGGERS_CONF)
+# Load the loggers configuration when the module being imported
+config.dictConfig(LOGGERS_CONF)

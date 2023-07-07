@@ -10,5 +10,5 @@ done
 echo "elasticsearch started"
 
 
-echo "Start REST server on ${SERVER_LISTENING_IP}:${SERVER_LISTENING_PORT}"
+echo "Start scraper REST server on ${SERVER_LISTENING_IP}:${SERVER_LISTENING_PORT}"
 uvicorn src.app:app --host ${SERVER_LISTENING_IP} --port ${SERVER_LISTENING_PORT} --workers ${SERVER_WORKERS_AMOUNT}

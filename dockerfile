@@ -11,15 +11,15 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # set working directory
-WORKDIR /usr/src/data_collector
+WORKDIR /usr/src/scraper
 
 # install dependencies
 RUN pip install --upgrade pip
-COPY ./requirements.txt /usr/src/data_collector/requirements.txt
+COPY ./requirements.txt /usr/src/scraper/requirements.txt
 RUN pip install -r requirements.txt
 
 # add app
-COPY . /usr/src/data_collector
+COPY . /usr/src/scraper
 
 # enable entrypoint
-RUN chmod +x /usr/src/data_collector/entrypoint.sh
+RUN chmod +x /usr/src/scraper/entrypoint.sh

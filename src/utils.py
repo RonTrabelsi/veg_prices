@@ -3,17 +3,10 @@
 from datetime import datetime
 from typing import Any, Dict, List
 
-from src.core.plants_council_scraper import plants_council_scraper
+from src.database import INDEXES, elastic_client
 
 # default start date for prices scraping
 DEFAULT_START_DATE = datetime(2000, 1, 1)
-
-# Default vegetables to load their market prices info
-DEFAULT_MARKET_PRICES_VEGETABLES = [
-    'עגבניות שרי אשכולות אכות מעולה',
-    'פלפל אדום איכות מעולה',
-    'בצל יבש',
-]
 
 
 def format_prices_data(
@@ -38,6 +31,7 @@ def format_prices_data(
 def format_series_data(
     series_data: Dict[str, Any]
 ) -> List[Dict[datetime, Any]]:
+    """ Format the given data to a date to value format """
     value_to_dates = [
         {date_data["date"]: date_data["value"]}
         for date_data in series_data
@@ -45,10 +39,8 @@ def format_series_data(
     return value_to_dates
 
 
-def load_default_market_prices() -> None:
-    """ Scrap and save default vegetables prices """
-    current_date = datetime.now()
-    for vegetable in DEFAULT_MARKET_PRICES_VEGETABLES:
-        plants_council_scraper.save_historic_prices(vegetable,
-                                                    DEFAULT_START_DATE,
-                                                    current_date)
+def create_indexes() -> None:
+    """ Create elasticsearch indexes """
+    for index in INDEXES:
+        if not elastic_client.indices.exists(index=index):
+            elastic_client.indices.create(index=index)

@@ -11,7 +11,6 @@ class Settings(BaseSettings):
     elastic_port: int
     elastic_protocol: str
 
-    load_default_market_prices: bool
     max_elasticsearch_query_size: int
 
 
