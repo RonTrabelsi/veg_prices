@@ -1,9 +1,11 @@
 """ Implement a periodic prices scraper """
 
+from contextlib import suppress
 from datetime import datetime, timedelta
 from logging import getLogger
 from sched import scheduler
-from typing import List
+from time import sleep
+from typing import Dict, List
 
 from common.plants_council_scraper import PlantsCouncilScraper
 from src.database import MARKET_PRICES_INDEX, es_client
@@ -26,24 +28,30 @@ class PeriodicPricesScraper:
     ) -> None:
         self.vegetables = vegetables
         self.start_date = start_date
-        self.interval = days_interval
+        self.interval = timedelta(days=days_interval)
 
-        self.scheduler = scheduler()
+        self.scheduler = scheduler(datetime.now, self.delay)
         logger = getLogger(PERIODIC_SCRAPER_LOGGER_NAME)
         self.logger = logger
-        self.plants_council_scraper = PlantsCouncilScraper(
+        self.scraper = PlantsCouncilScraper(
             es_client=es_client,
             logger=self.logger,
             es_prices_index_name=MARKET_PRICES_INDEX
         )
 
+    @staticmethod
+    def delay(time_delta: timedelta) -> None:
+        """ Sleep the given timedelta """
+        with suppress(AttributeError):
+            sleep(time_delta.total_seconds())
+
     def load_last_prices(self) -> None:
         """ Save vegetables prices from the last interval date until now """
         today = datetime.now()
-        start_date = today - timedelta(days=self.interval)
+        start_date = today - self.interval
 
         for vegetable in self.vegetables:
-            self.plants_council_scraper.scrap_historic_prices(
+            self.scraper.scrap_historic_prices(
                 vegetable_name=vegetable,
                 start_date=start_date,
                 end_date=today,
@@ -53,31 +61,37 @@ class PeriodicPricesScraper:
 
     def load_prices_periodically(self) -> None:
         """ Load the given vegetables every <self.interval> seconds """
-        delay = timedelta(days=self.interval).total_seconds()
-        self.scheduler.enter(delay=delay,
+        self.scheduler.enter(delay=self.interval,
                              priority=1,
                              action=self.load_prices_periodically)
         self.load_last_prices()
 
-    def get_next_execution_ts(self) -> int:
-        """ Return next execution midday in epoch """
-        next_execution_date = datetime.now() + timedelta(days=self.interval)
-        next_execution_midday = next_execution_date.replace(hour=12,
-                                                            minute=0,
+        self.logger.debug(f"next tasks: {self.get_scheduled_tasks()}")
+
+    def get_next_execution_datetime(self) -> datetime:
+        """ return: calculated next execution midday datetime """
+        next_execution_date = datetime.now() + self.interval
+        next_execution_midday = next_execution_date.replace(hour=20,
+                                                            minute=20,
                                                             second=0,
                                                             microsecond=0)
-        return next_execution_midday.timestamp()
+        return next_execution_midday
 
     def load_historic_prices(self) -> None:
         """ Load vegetables historic prices """
         for vegetable in self.vegetables:
-            self.plants_council_scraper.scrap_historic_prices(
+            self.scraper.scrap_historic_prices(
                 vegetable_name=vegetable,
                 start_date=self.start_date,
                 end_date=datetime.now(),
                 save=True,
                 get_results=False,
             )
+
+    def get_scheduled_tasks(self) -> Dict[datetime, callable]:
+        """ :return: all scheduled tasks """
+        return {event.time.strftime("%Y-%m-%d-%H-%M-%S"): event.action
+                for event in self.scheduler.queue}
 
     def track_prices(self) -> None:
         """ Track the given vegetables prices since the given date forever """
@@ -86,11 +100,12 @@ class PeriodicPricesScraper:
         self.load_historic_prices()
 
         self.logger.info(f"Start loading prices of: {self.vegetables} "
-                         f"every {self.interval} days")
+                         f"every {self.interval.days} days")
         self.scheduler.enterabs(
-            time=self.get_next_execution_ts(),
+            time=self.get_next_execution_datetime(),
             priority=1,
             action=self.load_prices_periodically
         )
+        self.logger.debug(f"next tasks: {self.get_scheduled_tasks()}")
 
-        self.scheduler.run()
+        self.scheduler.run(blocking=True)

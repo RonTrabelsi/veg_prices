@@ -15,14 +15,14 @@ WORKDIR /usr/src/rest_scraper
 
 # install dependencies
 RUN pip install --upgrade pip
-COPY ./requirements.txt /usr/src/rest_scraper/requirements.txt
+COPY ./rest_scraper/requirements.txt /usr/src/rest_scraper/requirements.txt
 RUN pip install -r requirements.txt
 
 # add app code
-COPY . /usr/src/rest_scraper
+COPY ./rest_scraper/ /usr/src/rest_scraper
 
 # add common code
-COPY ../common/ /usr/src/rest_scraper/src
+COPY ./common /usr/src/rest_scraper/common
 
 # enable entrypoint
 RUN chmod +x /usr/src/rest_scraper/entrypoint.sh

@@ -4,8 +4,8 @@ services:
 
   rest_scraper:
     build:
-      context: ./services/rest_scraper
-      dockerfile: dockerfile
+      context: ./services
+      dockerfile: rest_scraper/dockerfile
     env_file:
       - ./services/rest_scraper/prod.env
     entrypoint: ['/usr/src/rest_scraper/entrypoint.sh']
@@ -17,8 +17,8 @@ services:
 
   periodic_scraper:
     build:
-      context: ./services/periodic_scraper
-      dockerfile: dockerfile
+      context: ./services
+      dockerfile: periodic_scraper/dockerfile
     env_file:
       - ./services/periodic_scraper/prod.env
     entrypoint: ['/usr/src/periodic_scraper/entrypoint.sh']

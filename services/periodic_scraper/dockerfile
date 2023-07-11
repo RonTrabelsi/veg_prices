@@ -15,14 +15,14 @@ WORKDIR /usr/src/periodic_scraper
 
 # install dependencies
 RUN pip install --upgrade pip
-COPY ./requirements.txt /usr/src/periodic_scraper/requirements.txt
+COPY ./periodic_scraper/requirements.txt /usr/src/periodic_scraper/requirements.txt
 RUN pip install -r requirements.txt
 
 # add app code
-COPY . /usr/src/periodic_scraper
+COPY ./periodic_scraper /usr/src/periodic_scraper
 
 # add common code
-COPY ../common/ /usr/src/periodic_scraper/src
+COPY ./common/ /usr/src/periodic_scraper/common
 
 # enable entrypoint
 RUN chmod +x /usr/src/periodic_scraper/entrypoint.sh
