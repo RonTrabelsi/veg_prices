@@ -71,8 +71,8 @@ class PeriodicPricesScraper:
     def get_next_execution_datetime(self) -> datetime:
         """ return: calculated next execution midday datetime """
         next_execution_date = datetime.now() + self.interval
-        next_execution_midday = next_execution_date.replace(hour=20,
-                                                            minute=20,
+        next_execution_midday = next_execution_date.replace(hour=12,
+                                                            minute=0,
                                                             second=0,
                                                             microsecond=0)
         return next_execution_midday
