@@ -602,3 +602,21 @@ body {
 .explain p:last-child {
   margin-bottom: 0;
 }
+
+.steps {
+  margin: 0 0 10px;
+  padding-inline-start: 20px;
+}
+.steps li + li {
+  margin-top: 4px;
+}
+.table.lags {
+  width: auto;
+  margin-bottom: 8px;
+}
+.table.lags tr.best td {
+  font-weight: 700;
+}
+.table.lags td:first-child {
+  white-space: nowrap;
+}

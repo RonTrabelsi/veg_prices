@@ -128,7 +128,10 @@ export interface WeatherSignal {
   correlation: number;
   pct_per_degree: number;
   implied_pressure_pct: number;
+  min_correlation: number;
+  max_pressure_pct: number;
   n_months: number;
+  lag_results: { lag_months: number; n_months: number; correlation: number; pct_per_degree: number }[];
   forecast: { date: string; tmax: number; tmin: number; rain_mm: number }[];
 }
 

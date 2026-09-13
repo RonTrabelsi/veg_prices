@@ -6,7 +6,9 @@ const REGION_NOTES: Record<string, string> = {
   arava: "הערבה היא אזור הגידול של עונת החורף, ולכן חום בסוף הקיץ משפיע בעיקר על המחירים של נובמבר–דצמבר.",
 };
 
-export default function WeatherCard({ weather }: { weather: WeatherSignal | null }) {
+const months = (n: number) => (n === 1 ? "חודש" : n === 2 ? "חודשיים" : `${n} חודשים`);
+
+export default function WeatherCard({ weather, vegetable }: { weather: WeatherSignal | null; vegetable: string }) {
   if (!weather) {
     return (
       <section className="card weather">
@@ -17,7 +19,9 @@ export default function WeatherCard({ weather }: { weather: WeatherSignal | null
       </section>
     );
   }
-  const meaningful = weather.correlation >= 0.2;
+  const meaningful = weather.correlation >= weather.min_correlation;
+  const bestLag = weather.lag_results.reduce((best, item) => (item.correlation > best.correlation ? item : best), weather.lag_results[0]);
+
   return (
     <section className="card weather">
       <header className="card-header">
@@ -37,36 +41,69 @@ export default function WeatherCard({ weather }: { weather: WeatherSignal | null
             {weather.heat_stress_days_30d_normal != null && <> (בדרך כלל {Math.round(weather.heat_stress_days_30d_normal)})</>}
           </span>
         </div>
-        <div className={`stat ${trendClass(weather.implied_pressure_pct, 3)}`}>
-          <span className="stat-value">{pct(weather.implied_pressure_pct)}</span>
-          <span className="stat-label">השפעה משוערת על המחיר בעוד {weather.lag_months} חודשים</span>
+        <div className={`stat ${meaningful ? trendClass(weather.implied_pressure_pct, 3) : "neutral"}`}>
+          <span className="stat-value">{meaningful ? pct(weather.implied_pressure_pct) : "—"}</span>
+          <span className="stat-label">{meaningful ? `השפעה משוערת על המחיר בעוד ${months(weather.lag_months)}` : "אין השפעה על התחזית של הירק הזה"}</span>
         </div>
       </div>
 
       <div className="explain">
-        <h3 className="sub">איך הטמפרטורה משפיעה על המחיר</h3>
+        <h3 className="sub">איך מחושבת ההשפעה של הטמפרטורה</h3>
+        <ol className="steps">
+          <li>
+            לכל חודש מ־2015 מחשבים בכמה טמפרטורת השיא הייתה שונה <em>מהרגיל לאותו חודש</em>, ובכמה המחיר היה שונה (באחוזים)
+            <em> מהרגיל לאותו חודש</em>. כך העונה עצמה — קיץ חם, סתיו יקר — לא נספרת פעמיים.
+          </li>
+          <li>
+            משווים את סטיית המחיר לסטיית הטמפרטורה חודש, חודשיים ושלושה חודשים קודם. הפער הזה הוא זמן התפתחות הפרי: חום קיצוני פוגע
+            בחנטה, ואת הפרי החסר רואים בשוק רק כשהוא היה אמור להיקטף.
+          </li>
+          <li>
+            הפער עם הקשר החזק ביותר נבחר. השיפוע שלו אומר כמה אחוזים למעלה, והמתאם אומר כמה הקשר אמין. מתאם מתחת ל־
+            {weather.min_correlation.toFixed(1)} נחשב רעש ולא נכנס לתחזית.
+          </li>
+          <li>
+            הלחץ הנוכחי = השיפוע × הסטייה הממוצעת של 60 הימים האחרונים, מוגבל ל־±{weather.max_pressure_pct.toFixed(0)}%, ונכלל בתחזיות מחודש
+            ומעלה בלבד.
+          </li>
+        </ol>
+
+        <h3 className="sub">מה נמצא ל{vegetable}</h3>
+        <div className="scroll-x">
+          <table className="table compact lags">
+            <thead>
+              <tr>
+                <th>פער</th>
+                <th>מתאם</th>
+                <th>לכל מעלה</th>
+              </tr>
+            </thead>
+            <tbody>
+              {weather.lag_results.map((item) => (
+                <tr key={item.lag_months} className={item.lag_months === bestLag.lag_months ? "best" : ""}>
+                  <td>{months(item.lag_months)} קודם</td>
+                  <td className={item.correlation >= weather.min_correlation ? "cell up" : "muted"}>{item.correlation.toFixed(2)}</td>
+                  <td className={item.correlation >= weather.min_correlation ? "" : "muted"}>{signed(item.pct_per_degree, 1, "%")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {meaningful ? (
-          <>
-            <p>
-              חום מעל ~{weather.heat_stress_tmax}° פוגע בחנטה — פחות פרחים הופכים לפרי. את זה לא רואים בשוק כשחם, אלא כשהפרי החסר היה
-              אמור להיקטף, <strong>כ{weather.lag_months === 2 ? "חודשיים" : `${weather.lag_months} חודשים`} אחר כך</strong>: פחות סחורה, מחיר
-              גבוה יותר. ב־{weather.n_months} החודשים שנבדקו, כל מעלה מעל הרגיל הייתה שווה כ־
-              <strong>{signed(weather.pct_per_degree, 0, "%")}</strong> במחיר {weather.lag_months === 2 ? "חודשיים" : `${weather.lag_months} חודשים`} אחר כך.
-            </p>
-            <p>
-              <strong>כרגע:</strong> {weather.tmax_anomaly_60d >= 0 ? "חם" : "קריר"} ב־{Math.abs(weather.tmax_anomaly_60d).toFixed(1)}° מהרגיל
-              {weather.heat_stress_days_30d_normal != null && (
-                <>
-                  , עם {weather.heat_stress_days_30d} ימי חום לעומת {Math.round(weather.heat_stress_days_30d_normal)} בדרך כלל
-                </>
-              )}{" "}
-              — לחץ משוער של <strong>{pct(weather.implied_pressure_pct)}</strong> על המחיר. זה אות חלש־בינוני (מתאם {weather.correlation.toFixed(2)}):
-              הטמפרטורה מסבירה רק כ־{Math.round(weather.correlation * weather.correlation * 100)}% מהתנודות; חגים, עונה ועובדים משפיעים הרבה יותר.
-              לכן ההשפעה נכללת בתחזית רק מחודש ומעלה, ומוגבלת ל־±15%.
-            </p>
-          </>
+          <p>
+            נבחר פער של <strong>{months(weather.lag_months)}</strong>: כל מעלה מעל הרגיל הייתה שווה כ־<strong>{signed(weather.pct_per_degree, 0, "%")}</strong> במחיר,
+            על {weather.n_months} חודשים. זה אות חלש־בינוני — הטמפרטורה מסבירה כ־{Math.round(weather.correlation * weather.correlation * 100)}% מהתנודות;
+            חגים, עונה ועובדים משפיעים הרבה יותר. <strong>כרגע:</strong> {weather.tmax_anomaly_60d >= 0 ? "חם" : "קריר"} ב־
+            {Math.abs(weather.tmax_anomaly_60d).toFixed(1)}° מהרגיל
+            {weather.heat_stress_days_30d_normal != null && <>, {weather.heat_stress_days_30d} ימי חום לעומת {Math.round(weather.heat_stress_days_30d_normal)} בדרך כלל</>} — לחץ
+            משוער של <strong>{pct(weather.implied_pressure_pct)}</strong> על המחיר בעוד {months(weather.lag_months)}.
+          </p>
         ) : (
-          <p>בנתונים הקיימים לא נמצא קשר מובהק בין הטמפרטורה באזור למחיר, ולכן היא לא משפיעה על התחזית.</p>
+          <p>
+            ל{vegetable} <strong>לא נמצא קשר</strong> בין הטמפרטורה ב{weather.region_name} למחיר — המתאם הגבוה ביותר הוא {bestLag.correlation.toFixed(2)}, מתחת לסף.
+            לכן מזג האוויר לא משפיע על התחזית של הירק הזה, גם כשחם מהרגיל (כרגע {signed(weather.tmax_anomaly_60d, 1, "°")}). סיבות אפשריות: גידול
+            בעיקר בבתי צמיחה או באזור אחר, רגישות שונה לחום, או שוק שמושפע בעיקר מיצוא ולא מהיבול המקומי.
+          </p>
         )}
         {REGION_NOTES[weather.region] && <p className="muted small">{REGION_NOTES[weather.region]}</p>}
       </div>

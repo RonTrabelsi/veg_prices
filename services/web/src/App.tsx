@@ -119,7 +119,7 @@ export default function App() {
             <TodayCard overview={dashboard.overview} />
             <ForecastCard forecast={dashboard.forecast} overview={dashboard.overview} />
             <HolidaysCard holidays={dashboard.holidays} />
-            <WeatherCard weather={dashboard.weather} />
+            <WeatherCard weather={dashboard.weather} vegetable={dashboard.vegetable} />
             <SeasonalityChart seasonality={dashboard.seasonality} currentMonth={dashboard.overview.month} />
             <HistoryChart history={dashboard.history} />
             <PlantingPlanner vegetable={dashboard.vegetable} initial={dashboard.planting} />

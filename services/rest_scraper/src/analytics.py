@@ -25,8 +25,8 @@ MIN_BASELINE_YEARS = 3
 # Forecast error is estimated on the last full years, one origin per week
 BACKTEST_YEARS = 3
 BACKTEST_STEP_DAYS = 7
-# Weather affects supply with a lag of about two months (fruit development)
-WEATHER_LAG_MONTHS = 2
+# Weather affects supply with a lag (fruit development); the best lag among these is chosen per vegetable
+WEATHER_LAGS_MONTHS = (1, 2, 3)
 WEATHER_SIGNAL_DAYS = 60
 WEATHER_MIN_CORRELATION = 0.2
 WEATHER_MAX_PRESSURE_PCT = 15.0
@@ -507,15 +507,25 @@ class Analytics:
         past_years = past.index.year.nunique()
         heat_days_normal = float((past["tmax"] >= HEAT_STRESS_TMAX).sum() / past_years) if past_years else None
 
-        # monthly regression of the price deviation on the temperature deviation two months earlier
+        # monthly regression of the price deviation on the temperature deviation some months earlier;
+        # both deviations are relative to the same calendar month, so shared seasonality is removed
         monthly_price = series.resample("MS").mean()
         monthly_tmax = observed["tmax"].resample("MS").mean()
         price_pct = (monthly_price / monthly_price.groupby(monthly_price.index.month).transform("mean") - 1) * 100
         tmax_dev = monthly_tmax - monthly_tmax.groupby(monthly_tmax.index.month).transform("mean")
-        joined = pd.concat([price_pct.rename("price"), tmax_dev.shift(WEATHER_LAG_MONTHS).rename("tmax")], axis=1)
-        joined = joined[joined.index.year >= BASELINE_SINCE_YEAR].dropna()
-        correlation = float(joined["price"].corr(joined["tmax"])) if len(joined) > 24 else 0.0
-        slope = float(np.polyfit(joined["tmax"], joined["price"], 1)[0]) if len(joined) > 24 else 0.0
+        lag_results = []
+        for lag in WEATHER_LAGS_MONTHS:
+            joined = pd.concat([price_pct.rename("price"), tmax_dev.shift(lag).rename("tmax")], axis=1)
+            joined = joined[joined.index.year >= BASELINE_SINCE_YEAR].dropna()
+            enough = len(joined) > 24
+            lag_results.append({
+                "lag_months": lag,
+                "n_months": int(len(joined)),
+                "correlation": float(joined["price"].corr(joined["tmax"])) if enough else 0.0,
+                "pct_per_degree": float(np.polyfit(joined["tmax"], joined["price"], 1)[0]) if enough else 0.0,
+            })
+        best = max(lag_results, key=lambda result: result["correlation"])
+        correlation, slope = best["correlation"], best["pct_per_degree"]
         pressure = 0.0
         if correlation >= WEATHER_MIN_CORRELATION:
             pressure = float(np.clip(slope * tmax_anomaly, -WEATHER_MAX_PRESSURE_PCT, WEATHER_MAX_PRESSURE_PCT))
@@ -529,11 +539,14 @@ class Analytics:
             "heat_stress_days_30d": heat_days,
             "heat_stress_days_30d_normal": heat_days_normal,
             "heat_stress_tmax": HEAT_STRESS_TMAX,
-            "lag_months": WEATHER_LAG_MONTHS,
+            "lag_months": best["lag_months"],
             "correlation": correlation,
             "pct_per_degree": slope,
             "implied_pressure_pct": pressure,
-            "n_months": int(len(joined)),
+            "min_correlation": WEATHER_MIN_CORRELATION,
+            "max_pressure_pct": WEATHER_MAX_PRESSURE_PCT,
+            "n_months": best["n_months"],
+            "lag_results": lag_results,
             "forecast": [{"date": date, "tmax": row["tmax"], "tmin": row["tmin"], "rain_mm": row["rain_mm"]}
                          for date, row in forecast.iterrows()],
         }
