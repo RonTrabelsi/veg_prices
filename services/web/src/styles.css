@@ -86,7 +86,9 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .card.history,
-  .card.planting {
+  .card.planting,
+  .card.seasonality,
+  .card.caveats {
     grid-column: span 2;
   }
 }
@@ -580,4 +582,23 @@ body {
 .tracked {
   color: var(--green);
   font-weight: 600;
+}
+
+/* ---------- weather explanation */
+.explain {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--gray-bg);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.explain h3.sub {
+  margin: 0 0 6px;
+}
+.explain p {
+  margin: 0 0 8px;
+}
+.explain p:last-child {
+  margin-bottom: 0;
 }
