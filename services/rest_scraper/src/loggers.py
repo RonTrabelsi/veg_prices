@@ -7,6 +7,8 @@ REST_SCRAPER_LOGGER_NAME = "rest_scraper_logger"
 
 LOGGERS_CONF = {
     "version": 1,
+    # keep uvicorn's loggers alive so request errors and tracebacks reach the console
+    "disable_existing_loggers": False,
     "root": {
         "handlers": ["console"],
         "level": "INFO"

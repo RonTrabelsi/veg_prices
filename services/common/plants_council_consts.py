@@ -3,7 +3,7 @@
 from enum import Enum
 
 # Plants Council website URL
-PLANTS_COUNCIL_WEBSITE_URL: str = 'http://plants.moonsitesoftware.co.il/index.aspx'
+PLANTS_COUNCIL_WEBSITE_URL: str = 'https://plants.moonsite.co.il/index.aspx'
 
 # Constant request values
 DEFAULT_EVENT_TARGET: str = 'ctl02$Search'
@@ -19,7 +19,11 @@ RESPONSE_DATE_FORMAT: str = "%d/%m/%y"
 GENERAL_DATE_FORMAT: str = "%d/%m/%Y"
 
 # Regex Pattern to extract the prices table from the response HTML
-PRICES_TABLE_PATTERN: str = r'<tbody>\\r\\n\\t<tr class="rgRow tblPricesCells" id="ctl02_RadGrid1_ctl00__0" style="text-align:right;">(.*?)</tbody>\\r\\n\\r\\n</table>'
+PRICES_TABLE_PATTERN: str = r'<tbody>\r\n\t<tr class="rgRow tblPricesCells" id="ctl02_RadGrid1_ctl00__0" style="text-align:right;">(.*?)</tbody>\r\n\r\n</table>'
+
+# Regex Pattern to extract the product name from prices table row (the site search is a substring match,
+# so a page may contain several products - the name must come from the row, not from the request)
+ROW_PRODUCT_NAME_PATTERN: str = r'<td class="productName" style="width:249px;">\s*(.*?)\s*</td>'
 
 # Regex Pattern to extract the date from prices table row
 ROW_DATE_PATTERN: str = r'<td style="width:115px;">(\d{2}/\d{2}/\d{2})</td>'

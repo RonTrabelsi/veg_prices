@@ -1,6 +1,6 @@
 """ Implement market prices router """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from logging import getLogger
 from typing import Dict, List
 
@@ -19,6 +19,25 @@ plants_council_scraper = PlantsCouncilScraper(
 )
 
 market_prices_router = APIRouter()
+
+# Days of prices scanned when discovering product names
+PRODUCTS_LOOKBACK_DAYS = 45
+
+
+@market_prices_router.get("/products", summary="Discover product names on the source website")
+def discover_products(query: str) -> List[str]:
+    """
+    The website search matches by substring, so a partial name (e.g. "עגבני") returns every product
+    containing it. :return: the exact product names found for the given query
+    """
+    end_date = datetime.now()
+    rows = plants_council_scraper.scrap_prices_page(
+        vegetable_name=query,
+        start_date=end_date - timedelta(days=PRODUCTS_LOOKBACK_DAYS),
+        end_date=end_date,
+        page_number=1,
+    )
+    return sorted({row["vegetable_name"] for row in rows})
 
 
 @market_prices_router.post("/load_prices", status_code=status.HTTP_201_CREATED)
