@@ -80,8 +80,8 @@ def holidays(vegetable: str) -> Dict[str, Any]:
 def forecast(vegetable: str, region: Optional[str] = Query(None)) -> Dict[str, Any]:
     base = analytics_base(vegetable)
     weather = analytics.weather_signal(base["series"], region_or_400(region))
-    pressure = weather["implied_pressure_pct"] if weather else None
-    return run(analytics.forecast, base["prices"], base["series"], base["norm"], base["level"], pressure)
+    occurrences = analytics.holiday_occurrences(base["holidays"])
+    return run(analytics.forecast, base["prices"], base["series"], base["norm"], base["level"], occurrences, weather)
 
 
 @analytics_router.get("/history")

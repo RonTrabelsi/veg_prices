@@ -25,7 +25,7 @@ export const dateShort = (iso: string) => shortDate.format(new Date(iso));
 export const weekdayShort = (iso: string) => weekday.format(new Date(iso));
 
 export const horizonLabel = (days: number) =>
-  ({ 7: "בעוד שבוע", 14: "בעוד שבועיים", 28: "בעוד חודש", 56: "בעוד חודשיים", 84: "בעוד 3 חודשים" } as Record<number, string>)[days] ??
+  ({ 7: "בעוד שבוע", 14: "בעוד שבועיים", 21: "בעוד 3 שבועות", 28: "בעוד חודש", 56: "בעוד חודשיים", 84: "בעוד 3 חודשים" } as Record<number, string>)[days] ??
   `בעוד ${days} ימים`;
 
 export const daysUntil = (days: number) => {

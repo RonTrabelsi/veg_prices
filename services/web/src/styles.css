@@ -620,3 +620,12 @@ body {
 .table.lags td:first-child {
   white-space: nowrap;
 }
+
+.basis {
+  color: var(--green);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.forecast .explain {
+  margin-top: 6px;
+}

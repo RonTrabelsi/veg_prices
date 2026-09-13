@@ -31,15 +31,22 @@ export interface ForecastPoint {
   high: number;
   change_vs_now_pct: number;
   seasonal_norm: number;
+  holiday_norm: number | null;
+  nearest_holiday: { name_he: string; offset_days: number } | null;
+  norm_used: number;
+  norm_kind: "season" | "holiday";
   persistence: number;
   persistence_weight: number;
   blend_form: "ratio" | "additive";
+  weather_scale: number;
+  weather_pressure_pct: number;
   weather_adjustment: number;
   n: number;
   mae: number | null;
   p80_abs_error: number | null;
   naive_mae: number | null;
-  norm_mae: number | null;
+  season_mae: number | null;
+  signals_forced_mae: number | null;
 }
 
 export type VerdictLabel = "wait" | "sell" | "hold";

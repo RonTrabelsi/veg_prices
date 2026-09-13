@@ -1,4 +1,4 @@
-import { Forecast, Overview, VerdictLabel } from "../api";
+import { Forecast, ForecastPoint, Overview, VerdictLabel } from "../api";
 import { date, horizonLabel, pct, price, trendClass } from "../format";
 
 const VERDICTS: Record<VerdictLabel, { title: string; hint: string; icon: string }> = {
@@ -7,9 +7,23 @@ const VERDICTS: Record<VerdictLabel, { title: string; hint: string; icon: string
   hold: { title: "המחיר צפוי להישאר יציב", hint: "אין יתרון ברור לחכות או להזדרז", icon: "➡️" },
 };
 
+/** One line saying what the point forecast was built from */
+function basis(point: ForecastPoint): string {
+  const parts: string[] = [];
+  const todayShare = Math.round(point.persistence_weight * 100);
+  if (todayShare > 0) parts.push(`המחיר של היום ${todayShare}%`);
+  if (todayShare < 100) {
+    const season = point.norm_kind === "holiday" && point.nearest_holiday ? `פרופיל ${point.nearest_holiday.name_he}` : "העונה";
+    parts.push(`${season} ${100 - todayShare}%`);
+  }
+  if (point.weather_scale > 0 && point.weather_pressure_pct !== 0) parts.push(`מזג אוויר ${pct(point.weather_scale * point.weather_pressure_pct)}`);
+  return parts.join(" · ");
+}
+
 export default function ForecastCard({ forecast, overview }: { forecast: Forecast; overview: Overview }) {
   const verdict = VERDICTS[forecast.verdict.label];
-  const month = forecast.horizons.find((point) => point.horizon_days === forecast.verdict.horizon_days);
+  const priceOnly = forecast.horizons.filter((point) => point.persistence_weight === 1 && point.weather_scale === 0);
+  const withSignals = forecast.horizons.filter((point) => point.persistence_weight < 1 || point.weather_scale > 0);
   return (
     <section className="card forecast">
       <header className="card-header">
@@ -43,6 +57,7 @@ export default function ForecastCard({ forecast, overview }: { forecast: Forecas
               <td>
                 <div>{horizonLabel(point.horizon_days)}</div>
                 <div className="muted small">{date(point.target_date)}</div>
+                <div className="basis">{basis(point)}</div>
               </td>
               <td className="strong">{price(point.point)}</td>
               <td className="muted">
@@ -56,17 +71,40 @@ export default function ForecastCard({ forecast, overview }: { forecast: Forecas
         </tbody>
       </table>
 
-      <p className="footnote">
-        התחזית משלבת את המחיר הנוכחי ({price(overview.last_price)}) עם המחיר האופייני לעונה. הטווח מכסה 80% ממקרי העבר, לפי בדיקה על
-        השנים האחרונות.
-        {month?.mae != null && month.naive_mae != null && (
-          <>
-            {" "}
-            בתחזית לחודש: שגיאה ממוצעת {price(month.mae)}, לעומת {price(month.naive_mae)} אם מניחים שהמחיר לא ישתנה.
-          </>
-        )}
-        {month && month.weather_adjustment !== 0 && <> כולל התאמה למזג האוויר של {pct((month.weather_adjustment / (month.point - month.weather_adjustment)) * 100)}.</>}
-      </p>
+      <details className="details">
+        <summary>איך נבנתה התחזית, ולמה החגים ומזג האוויר לא תמיד משפיעים</summary>
+        <div className="explain">
+          <p>
+            לכל טווח נבדקו על {forecast.horizons[0]?.n ?? 0} מקרים מהשנים האחרונות כל השילובים של: המחיר של היום, המחיר האופייני לעונה,
+            <strong> פרופיל המחיר סביב החג הקרוב</strong> (כי חגים נודדים בין השנים), ו<strong>לחץ הטמפרטורה</strong> של החודשיים האחרונים. השילוב עם
+            השגיאה הקטנה ביותר הוא שמוצג, והוא כתוב מתחת לכל שורה.
+          </p>
+          {priceOnly.length > 0 && (
+            <p>
+              ל{priceOnly.map((point) => horizonLabel(point.horizon_days).replace("בעוד ", "")).join(", ")} נבחר{" "}
+              <strong>המחיר של היום בלבד</strong>: בטווח הזה השוק כבר מגלם את החג הקרוב ואת החום שהיה — הפרי שלא חנט כבר חסר, והעלייה
+              לפני החג כבר התחילה. הוספת החגים ומזג האוויר בכוח הייתה <em>מגדילה</em> את השגיאה
+              {priceOnly[0]?.mae != null && priceOnly[0]?.signals_forced_mae != null && (
+                <>
+                  {" "}
+                  (ל{horizonLabel(priceOnly[0].horizon_days).replace("בעוד ", "")}: מ־{price(priceOnly[0].mae)} ל־{price(priceOnly[0].signals_forced_mae)})
+                </>
+              )}
+              .
+            </p>
+          )}
+          {withSignals.length > 0 && withSignals[0].mae != null && withSignals[0].naive_mae != null && (
+            <p>
+              מ{horizonLabel(withSignals[0].horizon_days).replace("בעוד ", "")} ומעלה החגים ומזג האוויר כן משפרים: שגיאה של {price(withSignals[0].mae)} לעומת{" "}
+              {price(withSignals[0].naive_mae)} אם מניחים שהמחיר לא ישתנה
+              {withSignals[0].season_mae != null && <> ו־{price(withSignals[0].season_mae)} לפי העונה בלבד</>}.
+            </p>
+          )}
+          <p className="muted small">
+            הטווח הסביר מכסה 80% ממקרי העבר. המחיר הנוכחי: {price(overview.last_price)}.
+          </p>
+        </div>
+      </details>
     </section>
   );
 }

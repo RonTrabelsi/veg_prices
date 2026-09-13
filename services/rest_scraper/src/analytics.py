@@ -16,7 +16,7 @@ from common.weather_consts import GROWING_REGIONS, HEAT_STRESS_TMAX, SOURCE_FORE
 # The source has no data between 2009 and 2014 and the earlier years are a different price regime
 BASELINE_SINCE_YEAR = 2015
 # Forecast horizons offered to the farmer
-HORIZONS_DAYS = [7, 14, 28, 56, 84]
+HORIZONS_DAYS = [7, 14, 21, 28, 56, 84]
 # +/- days around the same calendar day averaged into the seasonal norm
 NORM_HALF_WINDOW_DAYS = 7
 # A year takes part in the baseline only with at least this many priced days
@@ -34,6 +34,14 @@ WEATHER_MAX_PRESSURE_PCT = 15.0
 # ratio: carry today's deviation from the norm proportionally, additive: carry today's price as is (w=1 is naive)
 BLEND_FORMS = ("ratio", "additive")
 BLEND_WEIGHTS = [round(step / 10, 1) for step in range(11)]
+# The "season" a forecast blends toward is either the day-of-year norm or, near a holiday, the price profile
+# aligned to that holiday (holidays drift up to a month between years, which blurs the day-of-year norm).
+NORM_KINDS = ("season", "holiday")
+HOLIDAY_PROFILE_HALF_WINDOW_DAYS = 35
+# Fraction of the weather pressure applied to a horizon; the backtest picks one per horizon
+WEATHER_SCALES = (0.0, 0.25, 0.5, 0.75, 1.0)
+# A year contributes to the relative (price / year mean) profiles only when nearly complete
+MIN_DAYS_FULL_YEAR = 300
 # Recommendation thresholds on the one-month horizon
 VERDICT_HORIZON_DAYS = 28
 VERDICT_THRESHOLD_PCT = 8.0
@@ -196,6 +204,74 @@ class Analytics:
             anomaly[year_prices.index] = year_prices / (expected * level) - 1
         return anomaly
 
+    def relative_prices(self, series: pd.Series) -> pd.Series:
+        """ :return: price divided by its year's mean, for the complete baseline years """
+        parts = []
+        for year in range(BASELINE_SINCE_YEAR, series.index.max().year + 1):
+            year_prices = self.year_slice(series, year)
+            if year_prices.notna().sum() >= MIN_DAYS_FULL_YEAR:
+                parts.append(year_prices / year_prices.mean())
+        return pd.concat(parts).sort_index() if parts else pd.Series(dtype=float)
+
+    @staticmethod
+    def holiday_profiles(relative: pd.Series, occurrences: List[Dict[str, Any]],
+                         exclude_year: Optional[int] = None) -> Dict[str, pd.Series]:
+        """
+        :return: per holiday, the typical price (relative to the year mean) by day offset from the holiday,
+                 median across years and lightly smoothed
+        """
+        half = HOLIDAY_PROFILE_HALF_WINDOW_DAYS
+        profiles = {}
+        for group in sorted({occurrence["group"] for occurrence in occurrences}):
+            rows = {}
+            for occurrence in occurrences:
+                holiday_date = occurrence["date"]
+                if occurrence["group"] != group or holiday_date.year == exclude_year:
+                    continue
+                segment = relative[holiday_date - timedelta(days=half): holiday_date + timedelta(days=half)]
+                if segment.notna().sum() >= 30:
+                    rows[holiday_date.year] = pd.Series(segment.values, index=(segment.index - holiday_date).days)
+            if len(rows) >= MIN_BASELINE_YEARS:
+                profile = pd.DataFrame(rows).median(axis=1).reindex(range(-half, half + 1))
+                profiles[group] = profile.interpolate(limit_direction="both").rolling(5, center=True, min_periods=1).mean()
+        return profiles
+
+    @staticmethod
+    def nearest_holiday(date: pd.Timestamp, occurrences: List[Dict[str, Any]],
+                        profiles: Dict[str, pd.Series]) -> Optional[Tuple[Dict[str, Any], int]]:
+        """ :return: the closest holiday occurrence with a profile within the window, and the day offset to it """
+        nearest = None
+        for occurrence in occurrences:
+            offset = (date - occurrence["date"]).days
+            if abs(offset) <= HOLIDAY_PROFILE_HALF_WINDOW_DAYS and occurrence["group"] in profiles:
+                if nearest is None or abs(offset) < abs(nearest[1]):
+                    nearest = (occurrence, offset)
+        return nearest
+
+    def holiday_norm_at(self, date: pd.Timestamp, occurrences: List[Dict[str, Any]], profiles: Dict[str, pd.Series],
+                        year_level: float) -> Optional[float]:
+        """ :return: the price the nearest holiday's profile implies for the date, None when no holiday is near """
+        nearest = self.nearest_holiday(date, occurrences, profiles)
+        if nearest is None:
+            return None
+        return float(profiles[nearest[0]["group"]][nearest[1]] * year_level)
+
+    @staticmethod
+    def tmax_climatology(observed_tmax: pd.Series) -> pd.Series:
+        """ :return: the usual daily max temperature per day of year, smoothed """
+        climatology = observed_tmax.groupby(observed_tmax.index.dayofyear).mean()
+        climatology = climatology.reindex(range(1, 367)).interpolate(limit_direction="both")
+        return climatology.rolling(7, center=True, min_periods=1).mean()
+
+    def weather_anomaly_series(self, region: str) -> Optional[pd.Series]:
+        """ :return: daily series of the mean max-temperature anomaly over the trailing WEATHER_SIGNAL_DAYS """
+        weather = self.load_weather(region)
+        if weather.empty:
+            return None
+        observed = weather[weather["source"] != SOURCE_FORECAST]["tmax"]
+        anomaly = observed - self.tmax_climatology(observed).reindex(observed.index.dayofyear).values
+        return anomaly.rolling(WEATHER_SIGNAL_DAYS, min_periods=40).mean()
+
     # ------------------------------------------------------------------ analytics blocks
 
     def overview(self, prices: pd.DataFrame, series: pd.Series, norm: pd.Series, level: float) -> Dict[str, Any]:
@@ -329,11 +405,14 @@ class Analytics:
         carried = price_now * norm_target / norm_now if form == "ratio" else price_now
         return weight * carried + (1 - weight) * norm_target
 
-    def backtest(self, series: pd.Series) -> Dict[int, Dict[str, Any]]:
+    def backtest(self, series: pd.Series, occurrences: List[Dict[str, Any]],
+                 weather_anomaly: Optional[pd.Series], pct_per_degree: float) -> Dict[int, Dict[str, Any]]:
         """
-        Replay the last full years with out-of-year baselines, pick per horizon the blend that minimizes the
-        absolute error, and measure it. :return: chosen blend and its errors per horizon
+        Replay the last full years with out-of-year baselines and pick, per horizon, the combination of
+        blend form, persistence weight, season kind (day-of-year vs holiday-aligned) and weather scale that
+        minimizes the absolute error. :return: the chosen model and its errors per horizon
         """
+        relative = self.relative_prices(series)
         samples = {horizon: [] for horizon in HORIZONS_DAYS}
         last_year = series.dropna().index.max().year
         for year in range(last_year - BACKTEST_YEARS, last_year):
@@ -345,63 +424,102 @@ class Analytics:
             if previous.notna().sum() < MIN_DAYS_PER_YEAR:
                 continue
             level = previous.mean() / np.nanmean(self.norm_at(previous.index, norm))
+            year_level = previous.mean()
+            profiles = self.holiday_profiles(relative, occurrences, exclude_year=year)
             for origin in pd.date_range(f"{year}-01-01", f"{year}-12-31", freq=f"{BACKTEST_STEP_DAYS}D"):
                 price_now = series.get(origin)
                 if price_now is None or math.isnan(price_now):
                     continue
-                norm_now = float(self.norm_at(pd.DatetimeIndex([origin]), norm, level)[0])
+                season_now = float(self.norm_at(pd.DatetimeIndex([origin]), norm, level)[0])
+                holiday_now = self.holiday_norm_at(origin, occurrences, profiles, year_level)
+                anomaly = weather_anomaly.get(origin) if weather_anomaly is not None else None
+                pressure = 0.0
+                if anomaly is not None and not math.isnan(anomaly):
+                    pressure = float(np.clip(pct_per_degree * anomaly, -WEATHER_MAX_PRESSURE_PCT,
+                                             WEATHER_MAX_PRESSURE_PCT))
                 for horizon in HORIZONS_DAYS:
                     target = origin + timedelta(days=horizon)
                     actual = series.get(target)
                     if actual is None or math.isnan(actual):
                         continue
-                    norm_target = float(self.norm_at(pd.DatetimeIndex([target]), norm, level)[0])
-                    samples[horizon].append((price_now, norm_now, norm_target, actual))
+                    season_target = float(self.norm_at(pd.DatetimeIndex([target]), norm, level)[0])
+                    holiday_target = self.holiday_norm_at(target, occurrences, profiles, year_level)
+                    samples[horizon].append((
+                        price_now, season_now, season_target,
+                        holiday_now if holiday_now is not None else season_now,
+                        holiday_target if holiday_target is not None else season_target,
+                        pressure, actual,
+                    ))
 
+        scales = WEATHER_SCALES if weather_anomaly is not None else (0.0,)
         result = {}
         for horizon in HORIZONS_DAYS:
             if not samples[horizon]:
-                result[horizon] = {"n": 0, "form": "additive", "weight": 1.0, "mae": None, "p80_abs_error": None,
-                                   "naive_mae": None, "norm_mae": None}
+                result[horizon] = {"n": 0, "form": "additive", "weight": 1.0, "norm_kind": "season",
+                                   "weather_scale": 0.0, "mae": None, "p80_abs_error": None, "naive_mae": None,
+                                   "season_mae": None, "signals_forced_mae": None}
                 continue
-            price_now, norm_now, norm_target, actual = np.array(samples[horizon]).T
+            price_now, season_now, season_target, holiday_now, holiday_target, pressure, actual = \
+                np.array(samples[horizon]).T
+            norms = {"season": (season_now, season_target), "holiday": (holiday_now, holiday_target)}
             best = None
-            for form in BLEND_FORMS:
-                for weight in BLEND_WEIGHTS:
-                    errors = np.abs(self.blend(form, weight, price_now, norm_now, norm_target) - actual)
-                    if best is None or errors.mean() < best[0]:
-                        best = (errors.mean(), form, weight, errors)
-            mae, form, weight, errors = best
+            for kind in NORM_KINDS:
+                norm_now, norm_target = norms[kind]
+                for form in BLEND_FORMS:
+                    for weight in BLEND_WEIGHTS:
+                        base = self.blend(form, weight, price_now, norm_now, norm_target)
+                        for scale in scales:
+                            errors = np.abs(base * (1 + scale * pressure / 100) - actual)
+                            if best is None or errors.mean() < best[0]:
+                                best = (errors.mean(), form, weight, kind, scale, errors)
+            mae, form, weight, kind, scale, errors = best
+            # what forcing both signals fully (holiday-aligned drift + full weather pressure) would have cost
+            forced = np.abs(price_now * holiday_target / holiday_now * (1 + pressure / 100) - actual)
             result[horizon] = {
                 "n": int(len(actual)),
                 "form": form,
                 "weight": float(weight),
+                "norm_kind": kind,
+                "weather_scale": float(scale),
                 "mae": float(mae),
                 "p80_abs_error": float(np.quantile(errors, 0.8)),
                 "naive_mae": float(np.abs(price_now - actual).mean()),
-                "norm_mae": float(np.abs(norm_target - actual).mean()),
+                "season_mae": float(np.abs(season_target - actual).mean()),
+                "signals_forced_mae": float(forced.mean()),
             }
         return result
 
     def forecast(self, prices: pd.DataFrame, series: pd.Series, norm: pd.Series, level: float,
-                 weather_pressure_pct: Optional[float]) -> Dict[str, Any]:
+                 occurrences: List[Dict[str, Any]], weather: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         last_date = prices.index.max()
         last_price = float(prices.loc[last_date, "regular_price"])
-        norm_now = float(self.norm_at(pd.DatetimeIndex([last_date]), norm, level)[0])
-        backtest = self.backtest(series)
+        year_level = float(series[series.index > last_date - timedelta(days=365)].mean())
+        profiles = self.holiday_profiles(self.relative_prices(series), occurrences)
+        weather_anomaly = self.weather_anomaly_series(weather["region"]) if weather else None
+        pct_per_degree = weather["pct_per_degree"] if weather and weather["correlation"] >= WEATHER_MIN_CORRELATION \
+            else 0.0
+        pressure_now = weather["implied_pressure_pct"] if weather else 0.0
+        backtest = self.backtest(series, occurrences, weather_anomaly if pct_per_degree else None, pct_per_degree)
 
+        season_now = float(self.norm_at(pd.DatetimeIndex([last_date]), norm, level)[0])
+        holiday_now = self.holiday_norm_at(last_date, occurrences, profiles, year_level)
         horizons = []
         for horizon in HORIZONS_DAYS:
             target = last_date + timedelta(days=horizon)
-            norm_target = float(self.norm_at(pd.DatetimeIndex([target]), norm, level)[0])
             chosen = backtest[horizon]
-            persistence = last_price * norm_target / norm_now if chosen["form"] == "ratio" else last_price
+            season_target = float(self.norm_at(pd.DatetimeIndex([target]), norm, level)[0])
+            holiday_target = self.holiday_norm_at(target, occurrences, profiles, year_level)
+            nearest = self.nearest_holiday(target, occurrences, profiles)
+            if chosen["norm_kind"] == "holiday" and holiday_target is not None:
+                norm_now_used = holiday_now if holiday_now is not None else season_now
+                norm_target_used = holiday_target
+            else:
+                norm_now_used, norm_target_used = season_now, season_target
             weight = chosen["weight"]
-            point = float(self.blend(chosen["form"], weight, last_price, norm_now, norm_target))
-            weather_adjustment = 0.0
-            if weather_pressure_pct and horizon >= 28:
-                weather_adjustment = point * weather_pressure_pct / 100 * min(1.0, horizon / 56)
-                point += weather_adjustment
+            persistence = last_price * norm_target_used / norm_now_used if chosen["form"] == "ratio" else last_price
+            base = float(self.blend(chosen["form"], weight, last_price, norm_now_used, norm_target_used))
+            weather_adjustment = base * chosen["weather_scale"] * pressure_now / 100
+            point = base + weather_adjustment
             band = chosen["p80_abs_error"] or 0.0
             horizons.append({
                 "horizon_days": horizon,
@@ -410,16 +528,23 @@ class Analytics:
                 "low": max(0.0, point - band),
                 "high": point + band,
                 "change_vs_now_pct": (point / last_price - 1) * 100,
-                "seasonal_norm": norm_target,
+                "seasonal_norm": season_target,
+                "holiday_norm": holiday_target,
+                "nearest_holiday": {"name_he": nearest[0]["name_he"], "offset_days": nearest[1]} if nearest else None,
+                "norm_used": norm_target_used,
+                "norm_kind": chosen["norm_kind"] if holiday_target is not None else "season",
                 "persistence": persistence,
                 "persistence_weight": weight,
                 "blend_form": chosen["form"],
+                "weather_scale": chosen["weather_scale"],
+                "weather_pressure_pct": pressure_now,
                 "weather_adjustment": weather_adjustment,
                 "n": chosen["n"],
                 "mae": chosen["mae"],
                 "p80_abs_error": chosen["p80_abs_error"],
                 "naive_mae": chosen["naive_mae"],
-                "norm_mae": chosen["norm_mae"],
+                "season_mae": chosen["season_mae"],
+                "signals_forced_mae": chosen["signals_forced_mae"],
             })
 
         verdict_point = next(point for point in horizons if point["horizon_days"] == VERDICT_HORIZON_DAYS)
@@ -493,9 +618,7 @@ class Analytics:
             return None
         observed = weather[weather["source"] != SOURCE_FORECAST]
         last_observed = observed.index.max()
-        climatology = observed["tmax"].groupby(observed.index.dayofyear).mean()
-        climatology = climatology.reindex(range(1, 367)).interpolate(limit_direction="both")
-        climatology = climatology.rolling(7, center=True, min_periods=1).mean()
+        climatology = self.tmax_climatology(observed["tmax"])
 
         recent = observed["tmax"][observed.index > last_observed - timedelta(days=WEATHER_SIGNAL_DAYS)]
         tmax_anomaly = float((recent - climatology.reindex(recent.index.dayofyear).values).mean())
@@ -577,7 +700,7 @@ class Analytics:
         except Exception as error:  # weather is an enrichment, never fail the dashboard on it
             self.logger.warning(f"Weather signal failed for {region}: {error}")
             weather = None
-        pressure = weather["implied_pressure_pct"] if weather else None
+        occurrences = self.holiday_occurrences(base["holidays"])
         result = {
             "vegetable": vegetable,
             "meta": {
@@ -590,7 +713,7 @@ class Analytics:
                 "generated_at": datetime.now().isoformat(timespec="seconds"),
             },
             "overview": self.overview(base["prices"], base["series"], base["norm"], base["level"]),
-            "forecast": self.forecast(base["prices"], base["series"], base["norm"], base["level"], pressure),
+            "forecast": self.forecast(base["prices"], base["series"], base["norm"], base["level"], occurrences, weather),
             "seasonality": self.seasonality(base["series"]),
             "holidays": self.holiday_effects(base["series"], base["holidays"]),
             "history": self.history(base["prices"], base["series"], base["norm"], base["level"], base["holidays"],
