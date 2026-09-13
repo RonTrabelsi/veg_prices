@@ -1,11 +1,13 @@
 """ Define schemas for REST requests and responses """
 
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, validator
 
 from common.cbs_consts import CBS_SERIES_IDENTIFIERS_AMOUNT
+from common.holidays_consts import DEFAULT_FROM_YEAR
+from common.weather_consts import DEFAULT_START_DATE as WEATHER_DEFAULT_START_DATE
 from src.utils import DEFAULT_START_DATE
 
 
@@ -43,3 +45,21 @@ class StatisticalDataRequest(BaseModel):
             raise ValueError("Invalid series id")
 
         return series_id_value
+
+
+class WeatherLoadRequest(BaseModel):
+    """ Describe a weather history load request """
+    regions: Optional[List[str]]
+    start_date: Optional[datetime] = WEATHER_DEFAULT_START_DATE
+    end_date: Optional[datetime]
+
+    @validator("end_date", pre=True, always=True)
+    def set_end_date(cls, end_date_value):
+        """ Set now as default value for end_date """
+        return end_date_value or datetime.now()
+
+
+class HolidaysLoadRequest(BaseModel):
+    """ Describe a holidays calendar load request """
+    from_year: Optional[int] = DEFAULT_FROM_YEAR
+    to_year: Optional[int]
