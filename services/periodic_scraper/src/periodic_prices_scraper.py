@@ -45,12 +45,28 @@ class PeriodicPricesScraper:
         except Exception as error:
             self.logger.error(f"Failed to {description}: {error}")
 
+    def get_indexed_vegetables(self) -> List[str]:
+        """ :return: every vegetable that already has prices in the index """
+        aggs = {"vegetables": {"terms": {"field": "vegetable_name.keyword", "size": 500}}}
+        try:
+            response = es_client.search(index=MARKET_PRICES_INDEX, size=0, aggs=aggs)
+        except Exception as error:
+            self.logger.error(f"Failed to list indexed vegetables: {error}")
+            return []
+        return [bucket["key"] for bucket in response["aggregations"]["vegetables"]["buckets"]]
+
+    def tracked_vegetables(self) -> List[str]:
+        """ :return: the configured vegetables plus everything loaded since, e.g. through the web app """
+        return sorted(set(self.vegetables) | set(self.get_indexed_vegetables()))
+
     def load_last_prices(self) -> None:
         """ Save vegetables prices from the last interval date until now, and refresh the enrichment data """
         today = datetime.now()
         start_date = today - self.interval
 
-        for vegetable in self.vegetables:
+        tracked = self.tracked_vegetables()
+        self.logger.info(f"Refreshing prices of {len(tracked)} vegetables")
+        for vegetable in tracked:
             self.safely(f"load last prices of {vegetable}", self.scraper.scrap_historic_prices,
                         vegetable, start_date, today, True, False)
         self.safely("refresh weather", self.weather_client.load_recent)
