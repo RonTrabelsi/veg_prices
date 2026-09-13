@@ -50,6 +50,11 @@ curl -X POST localhost/weather/load  -H 'Content-Type: application/json' -d '{}'
 curl -X POST localhost/holidays/load -H 'Content-Type: application/json' -d '{}'
 ```
 
+## Deploying for free
+See [deploy/ORACLE_CLOUD.md](deploy/ORACLE_CLOUD.md): an Oracle Cloud *Always Free* ARM VM running
+`docker-compose.yml` + [`docker-compose.prod.yml`](docker-compose.prod.yml) (only the web app is published), reachable
+privately through Tailscale. `deploy/setup-oracle-vm.sh` does the VM side in one run.
+
 ## What the analytics do
 Everything is computed from the indexed data (`rest_scraper/src/analytics.py`), one call: `GET /analytics/dashboard?vegetable=...`.
 - **Seasonal norm** - median across baseline years (2015+) of a ±7 day rolling mean, per day of year, scaled to the last year's price level.

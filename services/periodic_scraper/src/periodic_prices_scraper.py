@@ -15,6 +15,9 @@ from src.loggers import PERIODIC_SCRAPER_LOGGER_NAME
 DEFAULT_START_DATE = datetime(2000, 1, 1)
 # Default days interval of prices to load
 DEFAULT_DAYS_INTERVAL = 1
+# Each refresh re-requests this many days back. Upserts are idempotent, so the overlap is free and days missed
+# while the machine was off (or the website was down) heal on the next run.
+REFRESH_LOOKBACK_DAYS = 7
 
 
 class PeriodicPricesScraper:
@@ -62,7 +65,7 @@ class PeriodicPricesScraper:
     def load_last_prices(self) -> None:
         """ Save vegetables prices from the last interval date until now, and refresh the enrichment data """
         today = datetime.now()
-        start_date = today - self.interval
+        start_date = today - timedelta(days=max(REFRESH_LOOKBACK_DAYS, self.interval.days))
 
         tracked = self.tracked_vegetables()
         self.logger.info(f"Refreshing prices of {len(tracked)} vegetables")

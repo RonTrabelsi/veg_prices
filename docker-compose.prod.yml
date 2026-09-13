@@ -1,0 +1,28 @@
+# Production override: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# - Only the web app (port 3000) is published. Elasticsearch, Kibana and the write API have no
+#   authentication and stay reachable from inside the compose network only.
+# - Everything restarts after a reboot.
+# - Elasticsearch is capped at 4 GB (its heap becomes 2 GB); Kibana is optional: --profile kibana.
+
+services:
+
+  rest_scraper:
+    ports: !override []
+    restart: unless-stopped
+
+  periodic_scraper:
+    restart: unless-stopped
+
+  web:
+    restart: unless-stopped
+
+  elasticsearch:
+    ports: !override []
+    mem_limit: 4g
+    restart: unless-stopped
+
+  kibana:
+    ports: !override []
+    profiles: ["kibana"]
+    restart: unless-stopped
