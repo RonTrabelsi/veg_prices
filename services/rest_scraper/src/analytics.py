@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from elasticsearch import Elasticsearch, NotFoundError
 
-from common.holidays_consts import DEMAND_GROUPS, GROUP_NAMES_HE
+from common.holidays_consts import OCCURRENCE_GAP_DAYS
 from common.weather_consts import GROWING_REGIONS, HEAT_STRESS_TMAX, SOURCE_FORECAST
 
 # The source has no data between 2009 and 2014 and the earlier years are a different price regime
@@ -113,7 +113,7 @@ class Analytics:
 
     def load_holidays(self) -> pd.DataFrame:
         """ :return: the holidays calendar (empty if never loaded) """
-        docs = self.search_all(self.holidays_index, {"terms": {"group": DEMAND_GROUPS}})
+        docs = self.search_all(self.holidays_index, {"term": {"is_tracked": True}})
         if not docs:
             return pd.DataFrame()
         holidays = pd.DataFrame(docs)
@@ -251,23 +251,42 @@ class Analytics:
             "worst_months": [month["month"] for month in ordered[:3]],
         }
 
-    def holiday_effects(self, series: pd.Series, holidays: pd.DataFrame) -> Dict[str, Any]:
+    @staticmethod
+    def holiday_occurrences(holidays: pd.DataFrame) -> List[Dict[str, Any]]:
+        """
+        :return: the first day of every occurrence of every tracked holiday. Dates of one holiday closer than
+                 OCCURRENCE_GAP_DAYS belong to the same occurrence, so no per-holiday knowledge is needed.
+        """
+        occurrences = []
         if holidays.empty:
+            return occurrences
+        for group, items in holidays[~holidays["is_erev"]].sort_values("date").groupby("group"):
+            names = items.iloc[-1]
+            previous = None
+            for holiday_date in items["date"]:
+                if previous is None or (holiday_date - previous).days > OCCURRENCE_GAP_DAYS:
+                    occurrences.append({"group": group, "name_he": names["group_name_he"],
+                                        "name_en": names["group_name_en"], "subcat": names["subcat"],
+                                        "date": holiday_date})
+                previous = holiday_date
+        return sorted(occurrences, key=lambda occurrence: occurrence["date"])
+
+    def holiday_effects(self, series: pd.Series, holidays: pd.DataFrame) -> Dict[str, Any]:
+        occurrences = self.holiday_occurrences(holidays)
+        if not occurrences:
             return {"upcoming": [], "effects": []}
-        first_days = holidays[~holidays["is_erev"]].groupby(["group", holidays["date"].dt.year])["date"].min()
         last_data_year = series.dropna().index.max().year
         today = pd.Timestamp(datetime.now().date())
 
         effects = []
-        for group in DEMAND_GROUPS:
-            if group not in first_days.index.get_level_values(0):
-                continue
+        for group in sorted({occurrence["group"] for occurrence in occurrences}):
+            group_occurrences = [occurrence for occurrence in occurrences if occurrence["group"] == group]
             windows = {name: [] for name, _, _ in HOLIDAY_WINDOWS}
-            # selecting the group leaves a Series indexed by year
-            for year, holiday_date in first_days[group].items():
-                if year < BASELINE_SINCE_YEAR or year > last_data_year:
+            for occurrence in group_occurrences:
+                holiday_date = occurrence["date"]
+                if holiday_date.year < BASELINE_SINCE_YEAR or holiday_date.year > last_data_year:
                     continue
-                year_prices = self.year_slice(series, year)
+                year_prices = self.year_slice(series, holiday_date.year)
                 if year_prices.notna().sum() < MIN_DAYS_PER_YEAR:
                     continue
                 year_mean = year_prices.mean()
@@ -278,9 +297,12 @@ class Analytics:
             pre = windows[PRE_HOLIDAY_WINDOW]
             if len(pre) < MIN_BASELINE_YEARS:
                 continue
+            latest = group_occurrences[-1]
             effects.append({
                 "group": group,
-                "name_he": GROUP_NAMES_HE[group],
+                "name_he": latest["name_he"],
+                "name_en": latest["name_en"],
+                "subcat": latest["subcat"],
                 "n_years": len(pre),
                 "windows": [{"window": name, "from_day": start, "to_day": end,
                              "effect_pct": float(np.mean(windows[name])) if windows[name] else None}
@@ -288,17 +310,17 @@ class Analytics:
                 "pre_holiday_effect_pct": float(np.mean(pre)),
                 "consistency_pct": float(np.mean([value > 0 for value in pre]) * 100),
             })
+        effects.sort(key=lambda effect: -effect["pre_holiday_effect_pct"])
         effect_by_group = {effect["group"]: effect for effect in effects}
 
         upcoming = []
-        for (group, _), holiday_date in first_days.items():
-            days_until = (holiday_date - today).days
+        for occurrence in occurrences:
+            days_until = (occurrence["date"] - today).days
             if 0 <= days_until <= UPCOMING_HOLIDAYS_DAYS:
-                upcoming.append({"group": group, "name_he": GROUP_NAMES_HE[group], "date": holiday_date,
-                                 "days_until": days_until,
-                                 "pre_holiday_effect_pct": effect_by_group.get(group, {}).get("pre_holiday_effect_pct"),
-                                 "consistency_pct": effect_by_group.get(group, {}).get("consistency_pct")})
-        upcoming.sort(key=lambda holiday: holiday["days_until"])
+                effect = effect_by_group.get(occurrence["group"], {})
+                upcoming.append({**occurrence, "days_until": days_until,
+                                 "pre_holiday_effect_pct": effect.get("pre_holiday_effect_pct"),
+                                 "consistency_pct": effect.get("consistency_pct")})
         return {"upcoming": upcoming, "effects": effects}
 
     @staticmethod
@@ -427,12 +449,9 @@ class Analytics:
                                 index=series[series.index > start].index).resample("7D").mean()
         points = [{"date": date, "price": row["regular_price"], "special": row["special_price"],
                    "norm": norm_weekly.get(date)} for date, row in weekly.iterrows()]
-        markers = []
-        if not holidays.empty:
-            first_days = holidays[~holidays["is_erev"]].groupby(["group", holidays["date"].dt.year])["date"].min()
-            for (group, _), holiday_date in first_days.items():
-                if start < holiday_date <= last_date + timedelta(days=90):
-                    markers.append({"date": holiday_date, "group": group, "name_he": GROUP_NAMES_HE[group]})
+        markers = [{"date": occurrence["date"], "group": occurrence["group"], "name_he": occurrence["name_he"]}
+                   for occurrence in self.holiday_occurrences(holidays)
+                   if start < occurrence["date"] <= last_date + timedelta(days=90)]
         yearly = prices["regular_price"].groupby(prices.index.year).agg(["mean", "count"])
         return {
             "weekly": points,

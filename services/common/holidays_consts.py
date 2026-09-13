@@ -1,4 +1,4 @@
-""" Consts for the Jewish holidays fetcher (Hebcal, free, no API key) """
+""" Consts for the holidays fetcher (Hebcal, free, no API key) """
 
 HEBCAL_URL: str = "https://www.hebcal.com/hebcal"
 
@@ -15,44 +15,29 @@ RESPONSE_DATE_FORMAT: str = "%Y-%m-%d"
 DEFAULT_FROM_YEAR: int = 2005
 YEARS_AHEAD: int = 2
 
-# Holiday groups that matter for produce demand, keyed by the English title prefix Hebcal uses.
-# Order matters: the first matching prefix wins ("Pesach Sheni" must not become "pesach").
-HOLIDAY_GROUPS = [
-    ("Pesach Sheni", None),
-    ("Shushan Purim", None),
-    ("Purim Katan", None),
-    ("Rosh Hashana LaBehemot", None),
-    ("Rosh Hashana", "rosh_hashana"),
-    ("Yom Kippur", "yom_kippur"),
-    ("Sukkot", "sukkot"),
-    ("Shmini Atzeret", "shmini_atzeret"),
-    ("Simchat Torah", "shmini_atzeret"),
-    ("Chanukah", "chanukah"),
-    ("Tu BiShvat", "tu_bishvat"),
-    ("Purim", "purim"),
-    ("Pesach", "pesach"),
-    ("Yom HaAtzma'ut", "yom_haatzmaut"),
-    ("Lag BaOmer", "lag_baomer"),
-    ("Shavuot", "shavuot"),
-    ("Tish'a B'Av", "tisha_bav"),
+# Hebcal sub-categories analyzed as demand events. "major" is the calendar's own classification of the religious
+# festivals and fasts. "modern" (state commemorations such as memorial days) and "minor" days are stored for
+# completeness but not analyzed - add them here to track them.
+TRACKED_SUBCATS = ("major",)
+
+# Every day of a holiday is a separate calendar item. These rules reduce an item title to the holiday's name,
+# e.g. "Pesach II (CH''M)" -> "Pesach", "Chanukah: 3 Candles" -> "Chanukah", "Rosh Hashana 5787" -> "Rosh Hashana",
+# "סוכות ז׳ (הושענא רבה)" -> "סוכות". They are applied repeatedly until the title stops changing.
+EREV_PREFIX_EN: str = "Erev "
+EREV_PREFIX_HE: str = "ערב "
+TITLE_SUFFIX_PATTERNS_EN = [
+    r"\s*\([^)]*\)\s*$",                       # "(CH''M)", "(Hoshana Raba)"
+    r":.*$",                                    # "Chanukah: 3 Candles"
+    r"\s+\d{4}$",                               # "Rosh Hashana 5787"
+    r"\s+(?:I|II|III|IV|V|VI|VII|VIII)$",       # "Sukkot II"
 ]
+TITLE_SUFFIX_PATTERNS_HE = [
+    r"\s*\([^)]*\)\s*$",
+    r":.*$",
+    r"\s+\d{4}$",
+    r"\s+[א-ח]׳$",                              # "פסח א׳"
+]
+INTERMEDIATE_MARKERS = ("CH’’M", "CH''M", "חוה״מ")
 
-GROUP_NAMES_HE = {
-    "rosh_hashana": "ראש השנה",
-    "yom_kippur": "יום כיפור",
-    "sukkot": "סוכות",
-    "shmini_atzeret": "שמיני עצרת",
-    "chanukah": "חנוכה",
-    "tu_bishvat": "ט״ו בשבט",
-    "purim": "פורים",
-    "pesach": "פסח",
-    "yom_haatzmaut": "יום העצמאות",
-    "lag_baomer": "ל״ג בעומר",
-    "shavuot": "שבועות",
-    "tisha_bav": "תשעה באב",
-}
-
-# Groups shown to the farmer as demand events (multi-day, meal-heavy holidays)
-DEMAND_GROUPS = ["rosh_hashana", "sukkot", "pesach", "shavuot", "yom_haatzmaut", "chanukah", "purim"]
-
-EREV_PREFIX: str = "Erev "
+# Dates of one holiday closer than this belong to the same occurrence (the same year)
+OCCURRENCE_GAP_DAYS: int = 30

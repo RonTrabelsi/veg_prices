@@ -74,6 +74,8 @@ export interface Seasonality {
 export interface HolidayEffect {
   group: string;
   name_he: string;
+  name_en: string;
+  subcat: string;
   n_years: number;
   windows: { window: string; from_day: number; to_day: number; effect_pct: number | null }[];
   pre_holiday_effect_pct: number;
@@ -83,6 +85,8 @@ export interface HolidayEffect {
 export interface UpcomingHoliday {
   group: string;
   name_he: string;
+  name_en: string;
+  subcat: string;
   date: string;
   days_until: number;
   pre_holiday_effect_pct: number | null;
@@ -148,6 +152,23 @@ export interface Dashboard {
   weather: WeatherSignal | null;
 }
 
+export interface CatalogItem {
+  name: string;
+  days_on_site: number;
+  last_date: string | null;
+  last_price: number | null;
+  last_special_price: number | null;
+  indexed_days: number;
+  data_from: string | null;
+  data_to: string | null;
+}
+
+export interface LoadResult {
+  vegetable_name: string;
+  scraped_days: number;
+  products: string[];
+}
+
 const API = "/api";
 
 async function getJson<T>(path: string): Promise<T> {
@@ -173,3 +194,24 @@ export const fetchPlanting = (vegetable: string, daysToHarvest: number, harvestW
   getJson<Planting>(
     `/analytics/planting?vegetable=${encodeURIComponent(vegetable)}&days_to_harvest=${daysToHarvest}&harvest_window_days=${harvestWindowDays}`
   );
+
+export const fetchCatalog = (refresh = false) => getJson<CatalogItem[]>(`/market_prices/catalog${refresh ? "?refresh=true" : ""}`);
+
+/** Load the full price history of a product. Synchronous on the server: up to a minute for a long history. */
+export async function loadVegetable(name: string): Promise<LoadResult> {
+  const response = await fetch(`${API}/market_prices/load_prices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ vegetable_name: name }),
+  });
+  if (!response.ok) throw new Error(response.statusText);
+  return response.json();
+}
+
+/** Map API error details to something the farmer can read */
+export const friendlyError = (message: string) => {
+  if (/not enough full years/i.test(message)) return "לירק הזה אין עדיין מספיק שנות נתונים לניתוח עונתי (נדרשות לפחות 3 שנים מלאות).";
+  if (/no prices data/i.test(message)) return "לירק הזה עוד לא נטענו מחירים.";
+  if (/failed to fetch|networkerror/i.test(message)) return "לא ניתן להתחבר לשרת.";
+  return message;
+};
