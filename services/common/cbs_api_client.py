@@ -1,5 +1,3 @@
-""" Implement client for CBS API """
-
 from datetime import datetime
 from logging import Logger
 from typing import Any, Dict, List, Optional
@@ -7,33 +5,21 @@ from typing import Any, Dict, List, Optional
 from elasticsearch import Elasticsearch
 from requests import Request, Session
 
-from .cbs_consts import (API_ERR_MSG, CBS_DATA_PATH, CBS_WEBSITE_URL,
-                         DEFAULT_PAGE_SIZE, ENGLISH_LANGUAGE_CODE,
-                         GENERAL_DATE_FORMAT, JSON_FORMAT, REQUEST_DATE_FORMAT,
-                         RESPONSE_DATE_FORMAT, SHOULD_DOWNLOAD, RequestParams,
-                         ResponseFields)
+from .cbs_consts import (API_ERR_MSG, CBS_DATA_PATH, CBS_WEBSITE_URL, DEFAULT_PAGE_SIZE, ENGLISH_LANGUAGE_CODE,
+                         GENERAL_DATE_FORMAT, JSON_FORMAT, REQUEST_DATE_FORMAT, RESPONSE_DATE_FORMAT, SHOULD_DOWNLOAD,
+                         RequestParams, ResponseFields)
 
 
 class CbsApiClient:
     """ Client to CBS API """
 
-    def __init__(
-        self,
-        es_client: Elasticsearch,
-        logger: Logger,
-        es_statistics_index_name: str,
-    ) -> None:
+    def __init__(self, es_client: Elasticsearch, logger: Logger, es_statistics_index_name: str) -> None:
         self.session = Session()
         self.logger = logger
         self.es_client = es_client
         self.es_statistics_index_name = es_statistics_index_name
 
-    def build_request_params(
-        self,
-        series: str,
-        start_date: datetime,
-        end_date: datetime,
-    ) -> Dict[str, Any]:
+    def build_request_params(self, series: str, start_date: datetime, end_date: datetime,) -> Dict[str, Any]:
         """ Given relevant parameters, return query params to the request """
         formatted_start_date = start_date.strftime(REQUEST_DATE_FORMAT)
         formatted_end_date = end_date.strftime(REQUEST_DATE_FORMAT)
@@ -57,11 +43,7 @@ class CbsApiClient:
         """ Given a response data row, return its value """
         return row[ResponseFields.VALUE.value]
 
-    def extract_data(
-        self,
-        series_id: str,
-        response_content: Dict
-    ) -> List[Dict[datetime, Any]]:
+    def extract_data(self, series_id: str, response_content: Dict) -> List[Dict[datetime, Any]]:
         """ Given the response content, extract the data """
         data = response_content[ResponseFields.CONTENT.value][ResponseFields.SERIES_DATA.value]
 
@@ -100,18 +82,8 @@ class CbsApiClient:
 
         return upserted_docs_amount
 
-    def collect_data(
-        self,
-        series_id: str,
-        start_date: datetime,
-        end_date: datetime,
-        save: bool,
-        get_results: bool,
-    ) -> Dict:
-        """ 
-        Given a series, a start date and an end date, 
-        return the series data from the server
-        """
+    def collect_data(self, series_id: str, start_date: datetime, end_date: datetime, save: bool, get_results: bool) -> Dict:
+        """ Given a series, a start date and an end date, return the series data from the server """
         req_url = CBS_WEBSITE_URL + CBS_DATA_PATH
         req_params = self.build_request_params(series_id, start_date, end_date)
         next_url = Request("GET", url=req_url, params=req_params).prepare().url
@@ -143,10 +115,8 @@ class CbsApiClient:
             collected_dates_amount += len(response_data)
             next_url = self.get_next_url(response_content)
 
-        self.logger.info(f"collected {collected_dates_amount} dates data "
-                         f"with total {saved_dates_amount} new dates data of "
-                         f"series {series_id} "
-                         f"between {start_date.strftime(GENERAL_DATE_FORMAT)} "
-                         f"and {end_date.strftime(GENERAL_DATE_FORMAT)}")
+        self.logger.info(f"collected {collected_dates_amount} dates data with total {saved_dates_amount} new dates data"
+                         f"of series {series_id} between {start_date.strftime(GENERAL_DATE_FORMAT)} and "
+                         f"{end_date.strftime(GENERAL_DATE_FORMAT)}")
 
         return data

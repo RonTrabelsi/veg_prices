@@ -7,9 +7,7 @@ from typing import Any, Dict, List
 DEFAULT_START_DATE = datetime(2000, 1, 1)
 
 
-def format_prices_data(
-    prices_data: Dict[str, Any]
-) -> List[Dict[datetime, Dict[str, float]]]:
+def format_prices_data(prices_data: Dict[str, Any]) -> List[Dict[datetime, Dict[str, float]]]:
     """ 
     :return: the given vegetable prices data formatted to prices per date 
     """
