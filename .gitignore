@@ -137,3 +137,6 @@ dmypy.json
 
 # Monog DB content
 db/
+
+# web app
+node_modules/

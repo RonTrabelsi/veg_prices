@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
 
   rest_scraper:
@@ -24,6 +22,16 @@ services:
     entrypoint: ['/usr/src/periodic_scraper/entrypoint.sh']
     depends_on:
       - elasticsearch
+    restart: on-failure
+
+  web:
+    build:
+      context: ./services
+      dockerfile: web/dockerfile
+    ports:
+      - 3000:80
+    depends_on:
+      - rest_scraper
     restart: on-failure
 
   elasticsearch:

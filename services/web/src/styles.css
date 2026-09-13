@@ -1,0 +1,483 @@
+:root {
+  --bg: #f4f1ea;
+  --card: #ffffff;
+  --ink: #1f2933;
+  --muted: #6b7280;
+  --line: #e5e1d8;
+  --green: #2f855a;
+  --green-bg: #e6f4ec;
+  --red: #c53030;
+  --red-bg: #fde8e8;
+  --amber: #b7791f;
+  --amber-bg: #fdf3dc;
+  --gray-bg: #f1f5f9;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(31, 41, 51, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Hebrew", Arial, sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 16px 14px 40px;
+}
+
+/* ---------- header */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 8px 4px 18px;
+}
+.brand h1 {
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: -0.01em;
+}
+.subtitle {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+.select {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--muted);
+  min-width: 260px;
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+.select select {
+  font: inherit;
+  font-size: 17px;
+  color: var(--ink);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+/* ---------- layout */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .card.history,
+  .card.planting {
+    grid-column: span 2;
+  }
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 18px 16px;
+  min-width: 0;
+}
+.card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+}
+.card h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.card h3.sub {
+  margin: 18px 0 6px;
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.stamp {
+  color: var(--muted);
+  font-size: 13px;
+}
+.stamp.warn {
+  color: var(--amber);
+  font-weight: 600;
+}
+
+.banner {
+  padding: 14px 16px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+.banner.error {
+  background: var(--red-bg);
+  color: var(--red);
+}
+.banner.loading {
+  background: var(--gray-bg);
+  color: var(--muted);
+}
+
+.footer {
+  margin-top: 22px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 13px;
+}
+.strong {
+  font-weight: 700;
+}
+.footnote {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---------- today */
+.big-price {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 4px 0 2px;
+}
+.big-price .value {
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.big-price .unit {
+  color: var(--muted);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+@media (max-width: 520px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+}
+.stat {
+  border-radius: 12px;
+  padding: 12px 12px 10px;
+  background: var(--gray-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-value {
+  font-size: 24px;
+  font-weight: 800;
+}
+.stat-label {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.stat.up {
+  background: var(--green-bg);
+}
+.stat.up .stat-value {
+  color: var(--green);
+}
+.stat.down {
+  background: var(--red-bg);
+}
+.stat.down .stat-value {
+  color: var(--red);
+}
+.stat.warn {
+  background: var(--amber-bg);
+}
+.stat.warn .stat-value {
+  color: var(--amber);
+}
+
+/* ---------- chips */
+.chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+  background: var(--gray-bg);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.chip.up {
+  background: var(--green-bg);
+  color: var(--green);
+}
+.chip.down {
+  background: var(--red-bg);
+  color: var(--red);
+}
+.chip.large {
+  padding: 8px 12px;
+  white-space: normal;
+  text-align: center;
+  font-size: 16px;
+}
+.chip-note {
+  display: block;
+  font-weight: 500;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+/* ---------- forecast */
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  background: var(--gray-bg);
+}
+.verdict.wait {
+  background: var(--green-bg);
+}
+.verdict.sell {
+  background: var(--amber-bg);
+}
+.verdict.low {
+  opacity: 0.92;
+}
+.verdict-icon {
+  font-size: 30px;
+}
+.verdict-title {
+  font-size: 20px;
+  font-weight: 800;
+}
+.verdict-hint {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.table th {
+  text-align: start;
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 6px 6px;
+  border-bottom: 1px solid var(--line);
+}
+.table td {
+  padding: 9px 6px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.table tr:last-child td {
+  border-bottom: none;
+}
+.table.compact td,
+.table.compact th {
+  padding: 6px 8px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.cell.up {
+  color: var(--green);
+  font-weight: 700;
+}
+.cell.down {
+  color: var(--red);
+  font-weight: 700;
+}
+.scroll-x {
+  overflow-x: auto;
+}
+.details summary {
+  cursor: pointer;
+  color: var(--green);
+  font-weight: 600;
+  margin: 12px 0 8px;
+}
+
+/* ---------- holidays */
+.holiday-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.holiday {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--gray-bg);
+}
+.holiday .strong {
+  font-size: 17px;
+}
+
+/* ---------- seasonality */
+.legend-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.legend-line .sep {
+  color: var(--muted);
+  margin: 0 4px;
+}
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-inline-end: 2px;
+}
+.dot.up {
+  background: var(--green);
+}
+.dot.down {
+  background: var(--red);
+}
+.chart {
+  width: 100%;
+  min-width: 0;
+}
+
+/* ---------- planting */
+.inputs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.inputs label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.inputs input {
+  font: inherit;
+  font-size: 18px;
+  width: 120px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.windows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.window {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--gray-bg);
+}
+.rank {
+  flex: 0 0 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--green);
+  color: white;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+.window-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---------- weather */
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  direction: rtl;
+}
+.day {
+  text-align: center;
+  padding: 8px 2px;
+  border-radius: 10px;
+  background: var(--gray-bg);
+  font-size: 14px;
+}
+.day.hot {
+  background: var(--amber-bg);
+}
+.day-name {
+  color: var(--muted);
+  font-size: 12px;
+}
+.day-max {
+  font-weight: 800;
+  font-size: 18px;
+}
+.day-rain {
+  font-size: 12px;
+  color: #2b6cb0;
+}
+
+/* ---------- caveats */
+.bullets {
+  margin: 0;
+  padding-inline-start: 20px;
+  color: var(--muted);
+  font-size: 15px;
+}
+.bullets li + li {
+  margin-top: 6px;
+}
