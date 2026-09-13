@@ -21,9 +21,21 @@ expensive part of the season.
 | [Hebcal](https://www.hebcal.com) | Israeli holidays calendar 2005 → +2 years | `common/holidays_client.py` |
 | [CBS](https://apis.cbs.gov.il) | Statistical series (optional) | `common/cbs_api_client.py` |
 
-The Plants Council search matches by **substring**: asking for `עגבני` returns every tomato product. The scraper
-takes the product name from each row, so `GET /market_prices/products?query=עגבני` is the way to discover exact
-names before adding them to [vegetables_list.json](services/periodic_scraper/src/vegetables_list.json).
+The Plants Council search matches by **substring**, and an empty search returns the whole catalog (~40 products).
+The scraper takes the product name from each row, so mixed pages are indexed correctly.
+
+**Adding a vegetable** is done from the web app: the ＋ button lists every product on the site with its index
+coverage; picking one loads its full history (`POST /market_prices/load_prices`, up to a minute). The periodic
+scraper refreshes everything that has ever been indexed, so app-loaded products keep updating daily without
+touching [vegetables_list.json](services/periodic_scraper/src/vegetables_list.json) (which only seeds the first load).
+`GET /market_prices/catalog` returns the same list for scripts.
+
+**Holidays** are derived from the calendar, not hardcoded: each Hebcal item title is reduced to its holiday name
+(`Pesach II (CH''M)` → `Pesach`, `חנוכה: ג׳ נרות` → `חנוכה`), consecutive dates are clustered into yearly
+occurrences, and Hebcal's own `major` sub-category selects the festivals and fasts that are analyzed. State
+commemorations (`modern`) and minor days are stored but not analyzed; change `TRACKED_SUBCATS` in
+[holidays_consts.py](services/common/holidays_consts.py) to include them. Adding another calendar (e.g. Ramadan / Eid
+for the Arab market) means another client writing the same document shape to `holidays_index`.
 
 ## How to run
 1. Start everything: `./raise_app.sh` (or `docker compose up --build -d`).

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Dashboard, Vegetable, fetchDashboard, fetchVegetables } from "./api";
+import { Dashboard, Vegetable, fetchDashboard, fetchVegetables, friendlyError } from "./api";
 import { dateWithYear } from "./format";
+import CatalogPanel from "./components/CatalogPanel";
 import Caveats from "./components/Caveats";
 import ForecastCard from "./components/ForecastCard";
 import HistoryChart from "./components/HistoryChart";
@@ -30,6 +31,7 @@ export default function App() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [catalogOpen, setCatalogOpen] = useState(false);
 
   useEffect(() => {
     fetchVegetables()
@@ -68,29 +70,44 @@ export default function App() {
       .then(setDashboard)
       .catch((err: Error) => {
         setDashboard(null);
-        setError(err.message);
+        setError(friendlyError(err.message));
       })
       .finally(() => setLoading(false));
   }, [vegetable]);
 
+  const handleLoaded = (name: string) => {
+    fetchVegetables()
+      .then((list) => {
+        setVegetables(list);
+        setVegetable(name);
+      })
+      .catch(() => undefined);
+  };
+
   return (
     <div className="app">
+      {catalogOpen && <CatalogPanel current={vegetable} onClose={() => setCatalogOpen(false)} onLoaded={handleLoaded} />}
       <header className="header">
         <div className="brand">
           <h1>מחירי ירקות</h1>
           <p className="subtitle">כלי החלטה לחקלאי · מחירי מועצת הצמחים</p>
         </div>
-        <label className="select">
-          <span>ירק</span>
-          <select value={vegetable} onChange={(event) => setVegetable(event.target.value)}>
-            {vegetables.map((item) => (
-              <option key={item.name} value={item.name} disabled={!item.has_analytics}>
-                {item.name}
-                {item.has_analytics ? "" : " (אין די נתונים)"}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="controls">
+          <label className="select">
+            <span>ירק</span>
+            <select value={vegetable} onChange={(event) => setVegetable(event.target.value)}>
+              {vegetables.map((item) => (
+                <option key={item.name} value={item.name}>
+                  {item.name}
+                  {item.has_analytics ? "" : " (אין די נתונים)"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="btn" onClick={() => setCatalogOpen(true)}>
+            ＋ הוסף ירק
+          </button>
+        </div>
       </header>
 
       {error && <div className="banner error">{error}</div>}

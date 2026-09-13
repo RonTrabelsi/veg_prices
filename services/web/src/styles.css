@@ -481,3 +481,103 @@ body {
 .bullets li + li {
   margin-top: 6px;
 }
+
+/* ---------- header controls + catalog panel */
+.controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex: 1 1 320px;
+  max-width: 520px;
+}
+.btn {
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--green);
+  background: var(--green);
+  color: white;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.btn.ghost {
+  background: transparent;
+  color: var(--green);
+}
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 41, 51, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 12px;
+  z-index: 10;
+  overflow-y: auto;
+}
+.panel {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 720px;
+  padding: 18px;
+}
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.panel-header h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+.search {
+  font: inherit;
+  font-size: 17px;
+  width: 100%;
+  padding: 10px 12px;
+  margin: 12px 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.banner.ok {
+  background: var(--green-bg);
+  color: var(--green);
+}
+.catalog {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.catalog-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--gray-bg);
+}
+.catalog-row.current {
+  outline: 2px solid var(--green);
+}
+.catalog-main {
+  min-width: 0;
+}
+.tracked {
+  color: var(--green);
+  font-weight: 600;
+}
